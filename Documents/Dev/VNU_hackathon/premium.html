@@ -3,35 +3,36 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MedIndex — Premium</title>
-  <meta name="description" content="MedIndex plans: Regular is free. Premium adds all written reviews, a 5 GB Secure Medical Cloud (demo) and saved chatbot history.">
+  <title data-i18n="meta.premium.title">MedIndex — Premium</title>
+  <meta name="description" data-i18n-attr="content:meta.premium.desc" content="MedIndex plans: Regular is free. Premium adds all written reviews, a 5 GB Secure Medical Cloud (demo) and saved chatbot history.">
   <link rel="stylesheet" href="css/site.css">
+  <link rel="stylesheet" href="css/transitions.css">
 </head>
 <body class="mx-page">
-  <a class="mx-skip" href="#main">Skip to content</a>
+  <a class="mx-skip" href="#main" data-i18n="common.skip">Skip to content</a>
 
   <header id="site-header" class="mx-header">
     <div class="mx-header-inner">
       <a class="mx-brand" href="index.html">MedIndex</a>
-      <nav aria-label="Main"><a href="index.html">Home</a> · <a href="doctors.html">Find Doctors</a> · <a href="premium.html">Premium</a> · <a href="account.html">Account</a></nav>
+      <nav aria-label="Main" data-i18n-attr="aria-label:nav.main"><a href="index.html" data-i18n="nav.home">Home</a> · <a href="doctors.html" data-i18n="nav.doctors">Find Doctors</a> · <a href="premium.html" data-i18n="nav.premium">Premium</a> · <a href="account.html" data-i18n="nav.account">Account</a></nav>
     </div>
   </header>
 
   <main id="main" tabindex="-1">
     <div class="mx-wrap">
       <section class="mx-premium-hero" aria-labelledby="pr-title">
-        <p class="mx-kicker">Plans</p>
-        <h1 id="pr-title">Simple plans. <span class="mx-grad">Real value.</span></h1>
-        <p>Searching doctors, the assistant and ratings stay free. Premium unlocks every written review and a private cloud for your medical files.</p>
-        <div class="mx-toggle" role="group" aria-label="Billing period">
-          <button type="button" id="bill-monthly" aria-pressed="true">Monthly</button>
-          <button type="button" id="bill-yearly" aria-pressed="false">Yearly <span class="mx-save" id="save-pct"></span></button>
+        <p class="mx-kicker" data-i18n="plans.kicker">Plans</p>
+        <h1 id="pr-title"><span data-i18n="premium.hero.title">Simple plans.</span> <span class="mx-grad" data-i18n="premium.hero.accent">Real value.</span></h1>
+        <p data-i18n="premium.hero.lead">Searching doctors, the assistant and ratings stay free. Premium unlocks every written review and a private cloud for your medical files.</p>
+        <div class="mx-toggle" role="group" aria-label="Billing period" data-i18n-attr="aria-label:premium.billing">
+          <button type="button" id="bill-monthly" aria-pressed="true" data-i18n="premium.monthly">Monthly</button>
+          <button type="button" id="bill-yearly" aria-pressed="false"><span data-i18n="premium.yearly">Yearly</span> <span class="mx-save" id="save-pct"></span></button>
         </div>
       </section>
 
       <div class="mx-demo-note" role="note">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v6M12 16.5v.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-        <p><strong>Demo — no real payment is taken.</strong> Use test card <strong>4242 4242 4242 4242</strong>, any future expiry date and any 3-digit CVC.</p>
+        <p><strong data-i18n="premium.demo.title">Demo — no real payment is taken.</strong> <span data-i18n="premium.demo.useCard">Use test card</span> <strong>4242 4242 4242 4242</strong><span data-i18n="premium.demo.anyExpiry">, any future expiry date and any 3-digit CVC.</span></p>
       </div>
 
       <section class="mx-status" id="pr-status" aria-live="polite" aria-labelledby="pr-status-title">
@@ -40,30 +41,30 @@
 
       <div class="mx-plans mx-plans-gap">
         <article class="mx-plan" aria-labelledby="pl-reg">
-          <h2 id="pl-reg" class="mx-plan-h">Regular</h2>
-          <span class="mx-current-badge" id="reg-current" hidden>Current plan</span>
-          <p class="mx-plan-price"><span class="mx-plan-amount">Free</span><span class="mx-plan-per">forever</span></p>
+          <h2 id="pl-reg" class="mx-plan-h" data-i18n="plans.regular">Regular</h2>
+          <span class="mx-current-badge" id="reg-current" hidden data-i18n="premium.currentPlan">Current plan</span>
+          <p class="mx-plan-price"><span class="mx-plan-amount" data-i18n="plans.free">Free</span><span class="mx-plan-per" data-i18n="premium.forever">forever</span></p>
           <ul class="mx-plan-list">
-            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Search and filters</li>
-            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>MedIndex Assistant chatbot</li>
-            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Star ratings</li>
-            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Leave reviews</li>
-            <li class="mx-limited"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>Read up to 5 written reviews per doctor</li>
+            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="plans.f.search">Search and filters</span></li>
+            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="plans.f.chatbot">MedIndex Assistant chatbot</span></li>
+            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="plans.f.ratings">Star ratings</span></li>
+            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="plans.f.leaveReviews">Leave reviews</span></li>
+            <li class="mx-limited"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2.4"/></svg><span data-i18n="plans.f.read5">Read up to 5 written reviews per doctor</span></li>
           </ul>
           <a class="mx-btn mx-btn-secondary" href="doctors.html" id="reg-cta">Start searching</a>
         </article>
 
         <article class="mx-plan mx-plan-premium" aria-labelledby="pl-prem">
-          <span class="mx-plan-tag">Most complete</span>
-          <h2 id="pl-prem" class="mx-plan-h">Premium</h2>
-          <span class="mx-current-badge" id="prem-current" hidden>Current plan</span>
+          <span class="mx-plan-tag" data-i18n="premium.mostComplete">Most complete</span>
+          <h2 id="pl-prem" class="mx-plan-h" data-i18n="plans.premium">Premium</h2>
+          <span class="mx-current-badge" id="prem-current" hidden data-i18n="premium.currentPlan">Current plan</span>
           <p class="mx-plan-price"><span class="mx-plan-amount" id="prem-amount">$5.99</span><span class="mx-plan-per" id="prem-per">/ month</span></p>
           <p class="mx-plan-alt" id="prem-alt"></p>
           <ul class="mx-plan-list">
-            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Everything in Regular</li>
-            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>All written reviews for every doctor</li>
-            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>5 GB Secure Medical Cloud for your files <span class="mx-demo-tag">(demo: only file details are saved, not the files themselves)</span></span></li>
-            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Chatbot history saved to your cloud</li>
+            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="plans.f.everything">Everything in Regular</span></li>
+            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="plans.f.allReviews">All written reviews for every doctor</span></li>
+            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span><span data-i18n="plans.f.cloudFiles">5 GB Secure Medical Cloud for your files</span> <span class="mx-demo-tag" data-i18n="plans.demoTag">(demo: only file details are saved, not the files themselves)</span></span></li>
+            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="plans.f.history">Chatbot history saved to your cloud</span></li>
           </ul>
           <a class="mx-btn mx-btn-primary" href="account.html?next=premium.html" id="prem-cta">Get Premium</a>
         </article>
@@ -71,35 +72,35 @@
 
       <div class="mx-compare-wrap">
         <table class="mx-compare">
-          <caption>Compare plans</caption>
+          <caption data-i18n="premium.cmp.caption">Compare plans</caption>
           <thead>
-            <tr><th scope="col">Feature</th><th scope="col">Regular</th><th scope="col">Premium</th></tr>
+            <tr><th scope="col" data-i18n="premium.cmp.feature">Feature</th><th scope="col" data-i18n="plans.regular">Regular</th><th scope="col" data-i18n="plans.premium">Premium</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Search, filters and sorting</th><td class="mx-yes">Included</td><td class="mx-yes">Included</td></tr>
-            <tr><th scope="row">MedIndex Assistant chatbot</th><td class="mx-yes">Included</td><td class="mx-yes">Included</td></tr>
-            <tr><th scope="row">Star ratings</th><td class="mx-yes">Included</td><td class="mx-yes">Included</td></tr>
-            <tr><th scope="row">Leave reviews</th><td class="mx-yes">Included</td><td class="mx-yes">Included</td></tr>
-            <tr><th scope="row">Written reviews per doctor</th><td>Up to 5</td><td class="mx-yes">All</td></tr>
-            <tr><th scope="row">Secure Medical Cloud</th><td class="mx-no">Not included</td><td class="mx-yes">5 GB <span class="mx-demo-tag">(demo: only file details are saved, not the files themselves)</span></td></tr>
-            <tr><th scope="row">Chatbot history in the cloud</th><td class="mx-no">Not included</td><td class="mx-yes">Included</td></tr>
+            <tr><th scope="row" data-i18n="premium.cmp.search">Search, filters and sorting</th><td class="mx-yes" data-i18n="premium.cmp.included">Included</td><td class="mx-yes" data-i18n="premium.cmp.included">Included</td></tr>
+            <tr><th scope="row" data-i18n="plans.f.chatbot">MedIndex Assistant chatbot</th><td class="mx-yes" data-i18n="premium.cmp.included">Included</td><td class="mx-yes" data-i18n="premium.cmp.included">Included</td></tr>
+            <tr><th scope="row" data-i18n="plans.f.ratings">Star ratings</th><td class="mx-yes" data-i18n="premium.cmp.included">Included</td><td class="mx-yes" data-i18n="premium.cmp.included">Included</td></tr>
+            <tr><th scope="row" data-i18n="plans.f.leaveReviews">Leave reviews</th><td class="mx-yes" data-i18n="premium.cmp.included">Included</td><td class="mx-yes" data-i18n="premium.cmp.included">Included</td></tr>
+            <tr><th scope="row" data-i18n="premium.cmp.written">Written reviews per doctor</th><td data-i18n="premium.cmp.upTo5">Up to 5</td><td class="mx-yes" data-i18n="premium.cmp.all">All</td></tr>
+            <tr><th scope="row" data-i18n="premium.cmp.cloud">Secure Medical Cloud</th><td class="mx-no" data-i18n="premium.cmp.notIncluded">Not included</td><td class="mx-yes">5 GB <span class="mx-demo-tag" data-i18n="plans.demoTag">(demo: only file details are saved, not the files themselves)</span></td></tr>
+            <tr><th scope="row" data-i18n="premium.cmp.history">Chatbot history in the cloud</th><td class="mx-no" data-i18n="premium.cmp.notIncluded">Not included</td><td class="mx-yes" data-i18n="premium.cmp.included">Included</td></tr>
           </tbody>
         </table>
       </div>
 
       <section class="mx-faq" aria-labelledby="faq-title">
-        <h2 id="faq-title" class="mx-plan-h">Questions</h2>
+        <h2 id="faq-title" class="mx-plan-h" data-i18n="premium.faq.title">Questions</h2>
         <details>
-          <summary>Is this a real payment?</summary>
-          <p>No. This is a demo checkout: no money is taken and card details are never stored, neither in your browser nor on the server. Use the test card 4242 4242 4242 4242.</p>
+          <summary data-i18n="premium.faq.q1">Is this a real payment?</summary>
+          <p data-i18n="premium.faq.a1">No. This is a demo checkout: no money is taken and card details are never stored, neither in your browser nor on the server. Use the test card 4242 4242 4242 4242.</p>
         </details>
         <details>
-          <summary>What is the Secure Medical Cloud?</summary>
-          <p>A private 5 GB space in your account for medical documents such as test results and letters, plus your saved chats with MedIndex Assistant. In this demo only the file details (name, type and size) are saved, not the files themselves.</p>
+          <summary data-i18n="premium.faq.q2">What is the Secure Medical Cloud?</summary>
+          <p data-i18n="premium.faq.a2">A private 5 GB space in your account for medical documents such as test results and letters, plus your saved chats with MedIndex Assistant. In this demo only the file details (name, type and size) are saved, not the files themselves.</p>
         </details>
         <details>
-          <summary>Can I cancel?</summary>
-          <p>Yes, any time from this page. Your account goes back to the free Regular plan.</p>
+          <summary data-i18n="premium.faq.q3">Can I cancel?</summary>
+          <p data-i18n="premium.faq.a3">Yes, any time from this page. Your account goes back to the free Regular plan.</p>
         </details>
       </section>
     </div>
@@ -110,7 +111,7 @@
     <div class="mx-modal" role="dialog" aria-modal="true" aria-labelledby="co-title" id="co-dialog">
       <div class="mx-modal-head">
         <h2 id="co-title" tabindex="-1">Upgrade to Premium</h2>
-        <button type="button" class="mx-close" id="co-close" aria-label="Close checkout">
+        <button type="button" class="mx-close" id="co-close" aria-label="Close checkout" data-i18n-attr="aria-label:co.close">
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
         </button>
       </div>
@@ -120,18 +121,18 @@
       <!-- Step 1: summary -->
       <div id="co-step-1">
         <div class="mx-summary">
-          <div class="mx-summary-row"><span>Plan</span><span id="co-plan"></span></div>
-          <div class="mx-summary-row"><span>Billing</span><span id="co-billing"></span></div>
-          <div class="mx-summary-row"><span>Renews</span><span id="co-renews"></span></div>
-          <div class="mx-summary-row mx-summary-total"><span>Total today</span><span id="co-total"></span></div>
+          <div class="mx-summary-row"><span data-i18n="co.plan">Plan</span><span id="co-plan"></span></div>
+          <div class="mx-summary-row"><span data-i18n="co.billing">Billing</span><span id="co-billing"></span></div>
+          <div class="mx-summary-row"><span data-i18n="co.renews">Renews</span><span id="co-renews"></span></div>
+          <div class="mx-summary-row mx-summary-total"><span data-i18n="co.total">Total today</span><span id="co-total"></span></div>
         </div>
         <div class="mx-demo-note" role="note">
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v6M12 16.5v.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-          <p><strong>Demo — no real payment is taken.</strong> Use test card 4242 4242 4242 4242.</p>
+          <p><strong data-i18n="premium.demo.title">Demo — no real payment is taken.</strong> <span data-i18n="co.testCard">Use test card 4242 4242 4242 4242.</span></p>
         </div>
         <div class="mx-modal-actions">
-          <button type="button" class="mx-btn mx-btn-secondary" data-co-close>Not now</button>
-          <button type="button" class="mx-btn mx-btn-primary" id="co-next">Continue to payment</button>
+          <button type="button" class="mx-btn mx-btn-secondary" data-co-close data-i18n="co.notNow">Not now</button>
+          <button type="button" class="mx-btn mx-btn-primary" id="co-next" data-i18n="co.continue">Continue to payment</button>
         </div>
       </div>
 
@@ -139,35 +140,35 @@
       <form id="co-step-2" class="mx-form" novalidate hidden autocomplete="off">
         <div class="mx-demo-note" role="note">
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v6M12 16.5v.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-          <p><strong>Demo — no real payment is taken.</strong> Use test card 4242 4242 4242 4242. Card details are sent once for validation and never stored.</p>
+          <p><strong data-i18n="premium.demo.title">Demo — no real payment is taken.</strong> <span data-i18n="co.testCardStored">Use test card 4242 4242 4242 4242. Card details are sent once for validation and never stored.</span></p>
         </div>
         <p class="mx-form-err" id="co-err" role="alert" hidden></p>
         <div class="mx-field">
-          <label for="cc-name">Name on card</label>
+          <label for="cc-name" data-i18n="co.name">Name on card</label>
           <input id="cc-name" name="ccname" type="text" autocomplete="off" spellcheck="false" maxlength="80" aria-describedby="cc-name-err">
           <p class="mx-field-err" id="cc-name-err" hidden></p>
         </div>
         <div class="mx-field">
-          <label for="cc-number">Card number</label>
+          <label for="cc-number" data-i18n="co.number">Card number</label>
           <input id="cc-number" name="ccnumber" type="text" inputmode="numeric" autocomplete="off" maxlength="23" placeholder="4242 4242 4242 4242" aria-describedby="cc-number-hint cc-number-err">
-          <p class="mx-hint" id="cc-number-hint">12 to 19 digits. Spaces are added for you.</p>
+          <p class="mx-hint" id="cc-number-hint" data-i18n="co.numberHint">12 to 19 digits. Spaces are added for you.</p>
           <p class="mx-field-err" id="cc-number-err" hidden></p>
         </div>
         <div class="mx-row2">
           <div class="mx-field">
-            <label for="cc-exp">Expiry (MM/YY)</label>
-            <input id="cc-exp" name="ccexp" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="MM/YY" aria-describedby="cc-exp-err">
+            <label for="cc-exp" data-i18n="co.exp">Expiry (MM/YY)</label>
+            <input id="cc-exp" name="ccexp" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="MM/YY" data-i18n-attr="placeholder:co.expPlaceholder" aria-describedby="cc-exp-err">
             <p class="mx-field-err" id="cc-exp-err" hidden></p>
           </div>
           <div class="mx-field">
-            <label for="cc-cvc">CVC</label>
+            <label for="cc-cvc" data-i18n="co.cvc">CVC</label>
             <input id="cc-cvc" name="cccvc" type="password" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="123" aria-describedby="cc-cvc-hint cc-cvc-err">
-            <p class="mx-hint" id="cc-cvc-hint">3 or 4 digits</p>
+            <p class="mx-hint" id="cc-cvc-hint" data-i18n="co.cvcHint">3 or 4 digits</p>
             <p class="mx-field-err" id="cc-cvc-err" hidden></p>
           </div>
         </div>
         <div class="mx-modal-actions mx-actions-tight">
-          <button type="button" class="mx-btn mx-btn-secondary" id="co-back">Back</button>
+          <button type="button" class="mx-btn mx-btn-secondary" id="co-back" data-i18n="co.back">Back</button>
           <button type="submit" class="mx-btn mx-btn-primary" id="co-pay">Pay</button>
         </div>
       </form>
@@ -175,8 +176,8 @@
       <!-- Step 3: processing -->
       <div id="co-step-3" class="mx-center" hidden>
         <span class="mx-spinner" aria-hidden="true"></span>
-        <p role="status"><strong>Processing your demo payment…</strong></p>
-        <p>This takes a moment. No real money is moved.</p>
+        <p role="status"><strong data-i18n="co.processing">Processing your demo payment…</strong></p>
+        <p data-i18n="co.processingNote">This takes a moment. No real money is moved.</p>
       </div>
 
       <!-- Step 4: success -->
@@ -184,11 +185,11 @@
         <span class="mx-success-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
-        <h3 class="mx-plan-h" id="co-success-title">You're on Premium</h3>
+        <h3 class="mx-plan-h" id="co-success-title" data-i18n="co.successTitle">You're on Premium</h3>
         <p id="co-success-text"></p>
         <div class="mx-modal-actions mx-actions-full">
-          <button type="button" class="mx-btn mx-btn-secondary" data-co-close>Done</button>
-          <a class="mx-btn mx-btn-primary" href="cloud.html">Open Medical Cloud</a>
+          <button type="button" class="mx-btn mx-btn-secondary" data-co-close data-i18n="co.done">Done</button>
+          <a class="mx-btn mx-btn-primary" href="cloud.html" data-i18n="premium.openCloud">Open Medical Cloud</a>
         </div>
       </div>
     </div>
@@ -196,25 +197,28 @@
 
   <footer class="mx-footer">
     <div class="mx-wrap mx-footer-inner">
-      <a class="mx-brand" href="index.html" aria-label="MedIndex home">
+      <a class="mx-brand" href="index.html" aria-label="MedIndex home" data-i18n-attr="aria-label:nav.brandHome">
         <svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true" focusable="false"><rect x="1" y="1" width="38" height="38" rx="10" fill="currentColor"/><path d="M16 9h8v7h7v8h-7v7h-8v-7H9v-8h7z" fill="#0b1630"/></svg>
         <span>MedIndex</span>
       </a>
-      <nav aria-label="Footer">
+      <nav aria-label="Footer" data-i18n-attr="aria-label:footer.nav">
         <ul class="mx-footer-links">
-          <li><a href="doctors.html">Find Doctors</a></li>
-          <li><a href="doctors.html#assistant">AI Assistant</a></li>
-          <li><a href="premium.html">Premium</a></li>
-          <li><a href="account.html">Account</a></li>
+          <li><a href="doctors.html" data-i18n="nav.doctors">Find Doctors</a></li>
+          <li><a href="doctors.html#assistant" data-i18n="nav.assistant">AI Assistant</a></li>
+          <li><a href="premium.html" data-i18n="nav.premium">Premium</a></li>
+          <li><a href="account.html" data-i18n="nav.account">Account</a></li>
         </ul>
       </nav>
       <div class="mx-footer-legal">
-        <p><strong>About the data.</strong> Data collected from public pages of each network. Prices may change; confirm with the clinic before booking.</p>
-        <p><strong>About the AI.</strong> MedIndex Assistant gives general health information, not a diagnosis, and its advice may be wrong. It never replaces a doctor. In an emergency, call 112.</p>
+        <p><strong data-i18n="footer.dataTitle">About the data.</strong> <span data-i18n="footer.dataText">Data collected from public pages of each network. Prices may change; confirm with the clinic before booking.</span></p>
+        <p><strong data-i18n="footer.aiTitle">About the AI.</strong> <span data-i18n="footer.aiText">MedIndex Assistant gives general health information, not a diagnosis, and its advice may be wrong. It never replaces a doctor. In an emergency, call 112.</span></p>
       </div>
     </div>
   </footer>
 
+  <script src="js/i18n.js" defer></script>
+  <script src="js/i18n-shell.js" defer></script>
+  <script src="js/transitions.js" defer></script>
   <script src="js/api.js" defer></script>
   <script src="js/nav.js" defer></script>
   <script src="js/premium.js" defer></script>

@@ -121,11 +121,17 @@ Errors look like `{"error": "...", "field": "..."}` (`field` only for input erro
 | `POST /api/cloud/folders {name}` / `DELETE /api/cloud/folders/<id>` | Premium | 201 `{folder}` (409 duplicate) / 204 (system folder: 403; its files' metadata is deleted too) |
 | `POST /api/cloud/files {folderId, name, type, size}` / `DELETE /api/cloud/files/<id>` | Premium | 201 `{file, usedBytes}`; 413 "Storage full" past 5 GiB; 400 for "ChatBot History" / 204 |
 | `GET /api/chats`, `POST /api/chats {title?}`, `GET /api/chats/<id>`, `POST /api/chats/<id>/messages {role, content, meta?}`, `DELETE /api/chats/<id>` | Premium | list / 201 `{id, title}` / `{id, title, messages}` / 201 / 204. Content up to 4000 chars, `meta` up to 4 KB of JSON. The title comes from the first user message (60 chars) unless one was given |
+| `GET /api/favorites` | Premium | `{doctorIds: [int]}`, newest first |
+| `POST /api/favorites {doctorId}` | Premium | 201 `{doctorIds}` when added, 200 `{doctorIds}` if it already was a favourite (idempotent); 400 `field: "doctorId"` unless it is an int or ASCII-digit string that exists in `data/doctors.js`; 400 past 500 favourites |
+| `DELETE /api/favorites/<doctorId>` | Premium | 200 `{doctorIds}`, also when it was not a favourite (non-digit id -> 404) |
+| `GET /api/distinctions` | Premium | `{threshold: 4.5, doctorIds: [int], basis: "medindex_reviews"}`: doctors whose MedIndex reviews average >= 4.5 (at least 1 review), sorted by id |
 
 Saved **assistant** turns are re-checked at write time with the same output filter as Kimi replies (`sanitize_reply`: doses, medication changes, doctor names, phones, prices and links removed, 911 -> 112; a reply with nothing left gets a 400), and `meta` is reduced to `{redFlag (strict bool, forced true on emergency wording), suggestions: [{specialty (dataset list only), confidence, confidenceScore 0-100}] (max 3, none with a red flag)}`. User turns are stored as plain text without meta.
 Logged out -> 401, not Premium -> 403 (Premium is inactive when cancelled or when `renews_at` has passed). Every object is looked up together with the session's user id, so another user's id gives 404.
 The cloud stores **metadata only**: no file content is ever accepted, and nothing is allocated. `usedBytes` = `SUM(size_bytes)` of the files + the UTF-8 bytes of all saved chat messages (content + meta), which are also each chat's `size`.
 Limits: 100 folders, 2000 files, 500 chats per user, 500 messages per chat, and 20 MB of saved chat text per user (then 413 "Chat history storage full"). `folderId: null` puts a file at the top level.
+**Favourites** (table `favorites(user_id, doctor_id, created_at)`, migration 2) store doctor ids only, never doctor data; ids that disappear from `data/doctors.js` are not returned. They belong to the session user (no endpoint takes a user id). They are kept when Premium lapses but return 403 until Premium is active again, then the same list comes back.
+The **Premium distinction** is never stored: every request recomputes `AVG(stars) >= 4.5` from the MedIndex `reviews` table (exactly 4.5 qualifies), so a new review changes it immediately. Published or external ratings are never used.
 
 ## .env (repo root, gitignored; real environment variables override it)
 

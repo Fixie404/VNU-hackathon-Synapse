@@ -28,6 +28,14 @@
 
   try { if (window.localStorage) window.localStorage.removeItem(LEGACY_KEY); } catch (e) { /* storage blocked: nothing to clean */ }
 
+  /** UI-language message (js/i18n-directory.js reviews.* keys; English fallback). */
+  function msg(key, fallback, vars) {
+    var app = window.MedIndex && window.MedIndex.app;
+    var out = app && typeof app.tr === "function" ? app.tr("reviews." + key, vars) : null;
+    if (!out || out === "reviews." + key) out = fallback;
+    return out;
+  }
+
   function isNum(x) { return typeof x === "number" && isFinite(x); }
   function api() {
     var a = window.MedIndexAPI;
@@ -107,24 +115,24 @@
       done(e, null);
       return e;
     }
-    if (doctorId === null || doctorId === undefined || doctorId === "") return fail("invalid", "Missing doctor id.");
-    if (!Number.isInteger(stars) || stars < 1 || stars > 5) return fail("invalid", "Stars must be a whole number from 1 to 5.");
+    if (doctorId === null || doctorId === undefined || doctorId === "") return fail("invalid", msg("errMissingId", "Missing doctor id."));
+    if (!Number.isInteger(stars) || stars < 1 || stars > 5) return fail("invalid", msg("errStars", "Stars must be a whole number from 1 to 5."));
     var text = comment == null ? "" : String(comment).trim();
-    if (text.length > MAX_COMMENT) return fail("invalid", "Comment must be at most " + MAX_COMMENT + " characters.");
+    if (text.length > MAX_COMMENT) return fail("invalid", msg("errComment", "Comment must be at most " + MAX_COMMENT + " characters.", { max: MAX_COMMENT }));
     var a = api();
-    if (!a || state === "offline") return fail("offline", "Reviews need the local server. Run it and open http://127.0.0.1:8000.");
+    if (!a || state === "offline") return fail("offline", msg("errOfflineRun", "Reviews need the local server. Run it and open http://127.0.0.1:8000."));
     try {
       a.reviews.create(doctorId, stars, text, function (err, data) {
         if (err) {
-          if (err.status === 401) { done({ ok: false, code: "auth", status: 401, error: "Sign in to leave a review." }, null); return; }
+          if (err.status === 401) { done({ ok: false, code: "auth", status: 401, error: msg("errSignIn", "Sign in to leave a review.") }, null); return; }
           if (err.status === 409) {
-            done({ ok: false, code: "duplicate", status: 409, error: "You have already reviewed this doctor." }, null);
+            done({ ok: false, code: "duplicate", status: 409, error: msg("errDuplicate", "You have already reviewed this doctor.") }, null);
             list(doctorId, function () { notify(doctorId); }); // learn the existing review for the "You rated" state
             return;
           }
           if (isOfflineErr(err)) { state = "offline"; notify(null); }
           done({ ok: false, code: isOfflineErr(err) ? "offline" : "error", status: err.status || 0,
-                 error: isOfflineErr(err) ? "Reviews need the local server." : "Your review could not be saved. Please try again." }, null);
+                 error: isOfflineErr(err) ? msg("errOfflineShort", "Reviews need the local server.") : msg("errSave", "Your review could not be saved. Please try again.") }, null);
           return;
         }
         var review = (data && data.review) || { stars: stars, comment: text, createdAt: new Date().toISOString() };
@@ -136,7 +144,7 @@
         done(null, { review: review });
         load();
       });
-    } catch (e) { return fail("error", "Your review could not be saved. Please try again."); }
+    } catch (e) { return fail("error", msg("errSave", "Your review could not be saved. Please try again.")); }
     return { ok: true, pending: true };
   }
 

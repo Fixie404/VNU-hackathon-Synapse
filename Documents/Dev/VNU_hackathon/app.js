@@ -44,6 +44,74 @@
     hand: '<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false"><path d="M4 20h16M6 16l9.5-9.5 3 3L9 19H6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
   };
 
+  ICONS.heart = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path class="heart-path" d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.4 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.6 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+  ICONS.distinction = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 2.5l2.9 6 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.2 1.3-6.6L2.5 9.3l6.6-.8z" fill="currentColor" stroke="#7a5200" stroke-width="1" stroke-linejoin="round"/></svg>';
+  ICONS.info = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.5v6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.3" fill="currentColor"/></svg>';
+
+  /* ---------- Translation helpers (js/i18n.js + js/i18n-directory.js + js/i18n-specialties.js) ---------- */
+
+  function I18N() { return window.MedIndexI18n || null; }
+  function uiLang() {
+    var I = I18N();
+    var l = I && typeof I.getLang === "function" ? I.getLang() : "en";
+    return l === "ro" ? "ro" : "en";
+  }
+  /** tr(key, vars, lang?): lang = a specific language (e.g. a chat reply); default = the UI language. */
+  function tr(key, vars, lang) {
+    var L = lang === "ro" || lang === "en" ? lang : uiLang();
+    var S = window.MedIndexStrings || {};
+    var s = S[L] && Object.prototype.hasOwnProperty.call(S[L], key) ? S[L][key] : null;
+    var I = I18N();
+    if (s == null && !lang && I && typeof I.has === "function" && I.has(key)) s = I.t(key);
+    if (s == null && S.en && Object.prototype.hasOwnProperty.call(S.en, key)) s = S.en[key];
+    if (s == null) s = key;
+    s = String(s);
+    if (vars) {
+      s = s.replace(/\{(\w+)\}/g, function (m, k) {
+        return Object.prototype.hasOwnProperty.call(vars, k) && vars[k] != null ? String(vars[k]) : m;
+      });
+    }
+    return s;
+  }
+  /** Plural form suffix: EN one/other; RO one / few (0, 2-19, x01-x19) / many ("de": 20+). */
+  function pluralForm(n, lang) {
+    n = Math.abs(Math.floor(Number(n) || 0));
+    if ((lang || uiLang()) === "ro") {
+      if (n === 1) return "one";
+      var r = n % 100;
+      return n === 0 || (r >= 1 && r <= 19) ? "few" : "many";
+    }
+    return n === 1 ? "one" : "other";
+  }
+  function trn(base, n, vars, lang) {
+    var v = vars || {};
+    if (v.n == null) v.n = n;
+    return tr(base + "." + pluralForm(n, lang), v, lang);
+  }
+  function specLabel(spec, lang) {
+    if (!spec) return "";
+    var k = "spec." + spec, s = tr(k, null, lang);
+    return s === k ? spec : s;
+  }
+  function rankLabel(rank, lang) {
+    var k = "rank." + rank, s = tr(k, null, lang);
+    return s === k ? rank : s;
+  }
+  function kmText(km) {
+    var s = (Math.round(km * 10) / 10).toFixed(1);
+    return uiLang() === "ro" ? s.replace(".", ",") : s;
+  }
+  /** Lowercased search text for a specialty: English + Romanian labels + aliases. */
+  var specHayCache = {};
+  function specHay(spec) {
+    if (!spec) return "";
+    if (specHayCache[spec] != null) return specHayCache[spec];
+    var al = (window.MedIndexSpecAliases || {})[spec] || [];
+    var h = [spec, specLabel(spec, "en"), specLabel(spec, "ro")].concat(al).map(normalizeText).join(" | ");
+    if (window.MedIndexStrings) specHayCache[spec] = h;
+    return h;
+  }
+
   /* ---------- Pure helpers ---------- */
 
   /** Lowercase, strip diacritics (incl. Romanian ș/ş/ț/ţ), collapse spaces. */
@@ -88,7 +156,7 @@
     var q = normalizeText(filters.query);
     return doctors.filter(function (d) {
       if (q) {
-        var hay = normalizeText(d.name) + " | " + normalizeText(d.specialty);
+        var hay = normalizeText(d.name) + " | " + specHay(d.specialty);
         if (hay.indexOf(q) === -1) return false;
       }
       if (filters.specialty && d.specialty !== filters.specialty) return false;
@@ -166,6 +234,11 @@
 
   function formatDate(iso) {
     if (!iso) return "";
+    var I = I18N();
+    if (I && typeof I.formatDate === "function") {
+      var f = I.formatDate(iso, { day: "numeric", month: "short", year: "numeric" });
+      if (f) return f;
+    }
     var d = new Date(iso);
     if (isNaN(d.getTime())) return "";
     return d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear();
@@ -224,6 +297,241 @@
     origin: null // { lat, lng, label, kind: "gps"|"area" }
   };
   var lastGpsOrigin = null; // last successful GPS fix, reused when the area is cleared
+  state.highlight = null;   // doctor id from doctors.html?doctor=<id> (highlighted card)
+
+  /* Location status: remembered as a key so it can be re-translated on a language switch. */
+  var locStatus = null; // { key, vars }
+  function setLocStatus(key, vars) {
+    locStatus = { key: key, vars: vars || null };
+    var n = $("location-status");
+    if (n) n.textContent = tr(key, vars);
+  }
+
+  function distText(km, origin) {
+    var k = kmText(km);
+    return origin && origin.kind !== "gps" && origin.label
+      ? tr("dir.distArea", { km: k, area: origin.label })
+      : tr("dir.distYou", { km: k });
+  }
+
+  /* ---------- Premium: gold distinction + favourite hearts (the server enforces both) ---------- */
+  var prem = {
+    distinct: {},        // doctorId -> true (from GET /api/distinctions; never computed here)
+    favs: {},            // doctorId -> true
+    favLoaded: false,
+    favDisabled: false,  // 401/403 -> hearts hidden
+    favUser: undefined,
+    favBusy: {},
+    distSeq: 0,
+    distTimer: null
+  };
+
+  function navUser() {
+    var nav = window.MedIndexNav;
+    return nav && nav.ready ? (nav.user || null) : null;
+  }
+  function premiumHint() {
+    var u = navUser();
+    return !!(u && u.premium && u.premium.active);
+  }
+  function apiReq(method, url, body, cb) {
+    var a = window.MedIndexAPI;
+    if (!a || typeof a.request !== "function") { setTimeout(function () { cb({ status: 0, error: "offline" }, null); }, 0); return; }
+    try { a.request(method, url, body, cb); } catch (e) { cb({ status: -1, error: String(e) }, null); }
+  }
+  function validId(v) { return Number.isInteger(v) && v > 0 && v < 1e9; }
+  function idSet(list) {
+    var out = {};
+    (Array.isArray(list) ? list : []).forEach(function (v) { if (validId(v)) out[v] = true; });
+    return out;
+  }
+  function sameSet(a, b) {
+    var ka = Object.keys(a), kb = Object.keys(b);
+    return ka.length === kb.length && ka.every(function (k) { return b[k]; });
+  }
+  /* While a deep-linked card is pinned (doctors.html?doctor=<id>), re-renders keep it centred and focused. */
+  var pinUntil = 0;
+  function pinHighlighted() {
+    if (state.highlight == null || Date.now() > pinUntil) return false;
+    var li = document.querySelector('#grid li[data-doctor-id="' + state.highlight + '"]');
+    if (!li) return false;
+    li.scrollIntoView({ behavior: "auto", block: "center" });
+    var card = li.querySelector(".card");
+    if (card && document.activeElement !== card) { try { card.focus({ preventScroll: true }); } catch (e) { card.focus(); } }
+    return true;
+  }
+  function rerenderKeepScroll() {
+    if (!DOCTORS.length) return;
+    var y = window.pageYOffset;
+    render(state);
+    if (pinHighlighted()) return;
+    if (Math.abs(window.pageYOffset - y) > 1) window.scrollTo(0, y);
+  }
+
+  function setDistinctions(next) {
+    if (sameSet(prem.distinct, next)) return;
+    prem.distinct = next;
+    rerenderKeepScroll();
+  }
+  function fetchDistinctions() {
+    var seq = ++prem.distSeq;
+    if (!premiumHint()) { setDistinctions({}); return; }
+    apiReq("GET", "/api/distinctions", null, function (err, data) {
+      if (seq !== prem.distSeq) return;
+      if (err || !data || !Array.isArray(data.doctorIds)) { setDistinctions({}); return; } // silent
+      setDistinctions(idSet(data.doctorIds));
+    });
+  }
+  /** Debounced refetch (after reviews, sign-in or Premium changes). */
+  function refreshDistinctions() {
+    clearTimeout(prem.distTimer);
+    prem.distTimer = setTimeout(fetchDistinctions, 120);
+  }
+
+  function heartsVisible() { return premiumHint() && prem.favLoaded && !prem.favDisabled; }
+  function loadFavourites() {
+    var u = navUser();
+    var uid = u ? u.id : null;
+    if (uid !== prem.favUser) { prem.favUser = uid; prem.favs = {}; prem.favLoaded = false; prem.favDisabled = false; }
+    if (!premiumHint()) { if (prem.favLoaded) { prem.favLoaded = false; prem.favs = {}; } rerenderKeepScroll(); return; }
+    if (prem.favLoaded) return; // once per user
+    apiReq("GET", "/api/favorites", null, function (err, data) {
+      if (prem.favUser !== uid) return;
+      if (err) {
+        if (err.status === 401 || err.status === 403) prem.favDisabled = true;
+        rerenderKeepScroll();
+        return;
+      }
+      prem.favs = idSet(data && data.doctorIds);
+      prem.favLoaded = true;
+      rerenderKeepScroll();
+    });
+  }
+  function paintHeart(btn) {
+    var id = +btn.getAttribute("data-fav-id");
+    var on = !!prem.favs[id];
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    btn.setAttribute("aria-label", tr(on ? "fav.remove" : "fav.add"));
+    btn.title = tr(on ? "fav.remove" : "fav.add");
+    btn.classList.toggle("is-on", on);
+  }
+  function paintHearts() {
+    Array.prototype.forEach.call(document.querySelectorAll(".fav-btn[data-fav-id]"), paintHeart);
+  }
+  function announce(text) {
+    var live = $("mi-fav-live");
+    if (!live) {
+      live = el("p", "mi-sr-only");
+      live.id = "mi-fav-live";
+      live.setAttribute("role", "status");
+      document.body.appendChild(live);
+    }
+    live.textContent = "";
+    setTimeout(function () { live.textContent = text; }, 30);
+    clearTimeout(announce.t);
+    announce.t = setTimeout(function () { live.textContent = ""; }, 4000);
+  }
+  function toggleFavourite(id) {
+    if (!validId(id) || prem.favBusy[id]) return;
+    var was = !!prem.favs[id];
+    if (was) delete prem.favs[id]; else prem.favs[id] = true; // optimistic
+    prem.favBusy[id] = true;
+    paintHearts();
+    var cb = function (err, data) {
+      delete prem.favBusy[id];
+      if (err) {
+        if (was) prem.favs[id] = true; else delete prem.favs[id]; // rollback
+        if (err.status === 401 || err.status === 403) { prem.favDisabled = true; rerenderKeepScroll(); }
+        else paintHearts();
+        announce(tr("fav.error"));
+        return;
+      }
+      if (data && Array.isArray(data.doctorIds)) prem.favs = idSet(data.doctorIds);
+      paintHearts();
+    };
+    if (was) apiReq("DELETE", "/api/favorites/" + id, null, cb);
+    else apiReq("POST", "/api/favorites", { doctorId: id }, cb);
+  }
+  function buildHeart(doctor) {
+    if (!heartsVisible() || !validId(doctor.id)) return null;
+    var b = el("button", "fav-btn");
+    b.type = "button";
+    b.setAttribute("data-fav-id", String(doctor.id));
+    b.innerHTML = ICONS.heart; // static SVG only
+    paintHeart(b);
+    b.addEventListener("click", function () { toggleFavourite(doctor.id); });
+    return b;
+  }
+
+  /* Distinction ⓘ popover: one open at a time; click/focus opens, Esc/blur/outside click closes. */
+  var openPop = null; // { btn, pop }
+  var popSeq = 0;
+  function closePop() {
+    if (!openPop) return;
+    openPop.pop.hidden = true;
+    openPop.btn.setAttribute("aria-expanded", "false");
+    openPop = null;
+  }
+  function showPop(btn, pop) {
+    if (openPop && openPop.pop === pop) return;
+    closePop();
+    pop.hidden = false;
+    pop.style.left = "";
+    btn.setAttribute("aria-expanded", "true");
+    openPop = { btn: btn, pop: pop };
+    var r = pop.getBoundingClientRect(), vw = document.documentElement.clientWidth;
+    if (r.right > vw - 8) pop.style.left = Math.round(parseFloat(getComputedStyle(pop).left) - (r.right - vw + 8)) + "px";
+    r = pop.getBoundingClientRect();
+    if (r.left < 8) pop.style.left = Math.round(parseFloat(getComputedStyle(pop).left) + (8 - r.left)) + "px";
+  }
+  document.addEventListener("click", function (e) {
+    if (openPop && !openPop.btn.contains(e.target) && !openPop.pop.contains(e.target)) closePop();
+  });
+
+  function buildDistinction(doctor) {
+    var wrap = el("span", "distinction");
+    var star = el("span", "distinction-star");
+    star.setAttribute("role", "img");
+    star.setAttribute("aria-label", tr("star.label"));
+    star.innerHTML = ICONS.distinction; // static SVG only
+    wrap.appendChild(star);
+    var btn = el("button", "distinction-info");
+    btn.type = "button";
+    btn.setAttribute("aria-label", tr("star.info"));
+    btn.setAttribute("aria-expanded", "false");
+    var pid = "distinction-pop-" + (++popSeq);
+    btn.setAttribute("aria-controls", pid);
+    btn.setAttribute("aria-describedby", pid);
+    btn.innerHTML = ICONS.info; // static SVG only
+    var pop = el("span", "distinction-pop", tr("star.text"));
+    pop.id = pid;
+    pop.setAttribute("role", "tooltip");
+    pop.hidden = true;
+    var byPointer = false;
+    btn.addEventListener("pointerdown", function () { byPointer = true; });
+    btn.addEventListener("focus", function () { if (!byPointer) showPop(btn, pop); });
+    btn.addEventListener("click", function () {
+      byPointer = false;
+      if (openPop && openPop.pop === pop) closePop(); else showPop(btn, pop);
+    });
+    btn.addEventListener("blur", function () { byPointer = false; if (openPop && openPop.pop === pop) closePop(); });
+    btn.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && openPop && openPop.pop === pop) { e.preventDefault(); e.stopPropagation(); closePop(); }
+    });
+    wrap.appendChild(btn);
+    wrap.appendChild(pop);
+    return wrap;
+  }
+
+  /** <tag class id>name</tag> + the gold distinction (Premium, listed ids only), wrapped in a row. */
+  function buildNameRow(tag, className, id, doctor) {
+    var row = el("div", "name-row");
+    var name = el(tag, className, doctor.name);
+    if (id) name.id = id;
+    row.appendChild(name);
+    if (premiumHint() && prem.distinct[doctor.id]) row.appendChild(buildDistinction(doctor));
+    return row;
+  }
 
   /* Integration hooks for assistant/ui.js (see MedIndex.app below). */
   var customSorts = {};       // key -> { label, compare, enabled }
@@ -266,18 +574,19 @@
 
   function buildCard(doctor, origin) {
     var li = el("li", "card-item");
+    li.setAttribute("data-doctor-id", String(doctor.id));
     var card = el("article", "card");
     card.setAttribute("aria-labelledby", "doc-" + doctor.id + "-name");
+    card.tabIndex = -1;
+    if (state.highlight === doctor.id) card.classList.add("is-highlighted");
     li.appendChild(card);
 
     /* Top: avatar + identity */
     var top = el("div", "card-top");
     top.appendChild(buildAvatar(doctor));
     var ident = el("div", "card-ident");
-    var name = el("h2", "card-name", doctor.name);
-    name.id = "doc-" + doctor.id + "-name";
-    ident.appendChild(name);
-    ident.appendChild(el("p", "card-specialty", doctor.specialty));
+    ident.appendChild(buildNameRow("h2", "card-name", "doc-" + doctor.id + "-name", doctor));
+    ident.appendChild(el("p", "card-specialty", specLabel(doctor.specialty)));
 
     var badges = el("div", "badges");
     var hb = el("span", "badge badge-hospital badge-" + hospitalSlug(doctor.hospital), doctor.hospital);
@@ -286,17 +595,19 @@
       var senior = doctor.medicalRank === SENIOR_RANK;
       var rank = el("span", "badge badge-rank" + (senior ? " is-senior" : ""));
       if (senior) rank.appendChild(icon("star"));
-      rank.appendChild(el("span", null, doctor.medicalRank));
+      rank.appendChild(el("span", null, rankLabel(doctor.medicalRank)));
       badges.appendChild(rank);
     }
     if (doctor.manual === true) {
       var manual = el("span", "badge badge-manual");
       manual.appendChild(icon("hand"));
-      manual.appendChild(el("span", null, "Manually collected"));
-      manual.title = "Entered by hand from the network's public page";
+      manual.appendChild(el("span", null, tr("dir.manual")));
+      manual.title = tr("dir.manualTitle");
       badges.appendChild(manual);
     }
     top.appendChild(ident);
+    var heart = buildHeart(doctor);
+    if (heart) top.appendChild(heart);
     card.appendChild(top);
     card.appendChild(badges);
 
@@ -312,17 +623,17 @@
     if (srcUrl) {
       if (meta.childNodes.length) meta.appendChild(document.createTextNode(" "));
       var srcWrap = el("span", "source-wrap", meta.childNodes.length ? "· " : "");
-      var srcLink = el("a", "source-link", "Source");
+      var srcLink = el("a", "source-link", tr("dir.source"));
       srcLink.href = srcUrl;
       srcLink.target = "_blank";
       srcLink.rel = "noopener noreferrer";
-      srcLink.setAttribute("aria-label", "Price source for " + doctor.name + " (opens in a new tab)");
+      srcLink.setAttribute("aria-label", tr("dir.sourceAria", { name: doctor.name }));
       srcWrap.appendChild(srcLink);
       meta.appendChild(srcWrap);
     }
     price.appendChild(meta);
     var checked = formatDate(doctor.scrapedAt);
-    if (checked) price.appendChild(el("p", "price-checked", "Checked on " + checked));
+    if (checked) price.appendChild(el("p", "price-checked", tr("dir.checked", { date: checked })));
     card.appendChild(price);
 
     /* Location */
@@ -330,12 +641,11 @@
     if (doctor.clinicName) loc.appendChild(el("p", "clinic", doctor.clinicName));
     var where = el("p", "where");
     where.appendChild(icon("pin", "icon-pin"));
-    var whereText = el("span", null, doctor.area || doctor.address || "Bucharest");
+    var whereText = el("span", null, doctor.area || doctor.address || tr("dir.bucharest"));
     where.appendChild(whereText);
     var km = distanceFor(doctor, origin);
     if (km != null) {
-      where.appendChild(el("span", "distance",
-        formatKm(km) + " from " + (origin.kind === "gps" ? "you" : origin.label)));
+      where.appendChild(el("span", "distance", distText(km, origin)));
     }
     loc.appendChild(where);
     if (doctor.address && doctor.area) loc.appendChild(el("p", "address", doctor.address));
@@ -345,7 +655,7 @@
     var foot = el("div", "card-foot");
     var cnas = el("p", "cnas " + (doctor.acceptsCNAS ? "is-yes" : "is-no"));
     cnas.appendChild(icon(doctor.acceptsCNAS ? "check" : "cross"));
-    cnas.appendChild(el("span", null, doctor.acceptsCNAS ? "CNAS accepted" : "Private pay only"));
+    cnas.appendChild(el("span", null, tr(doctor.acceptsCNAS ? "dir.cnasYes" : "dir.cnasNo")));
     foot.appendChild(cnas);
 
     var profileUrl = safeUrl(doctor.profileUrl);
@@ -354,8 +664,8 @@
       btn.href = profileUrl;
       btn.target = "_blank";
       btn.rel = "noopener noreferrer";
-      btn.setAttribute("aria-label", "View profile of " + doctor.name + " (opens in a new tab)");
-      btn.appendChild(el("span", null, "View profile"));
+      btn.setAttribute("aria-label", tr("dir.profileAria", { name: doctor.name }));
+      btn.appendChild(el("span", null, tr("dir.profile")));
       btn.appendChild(icon("external"));
       foot.appendChild(btn);
     }
@@ -369,6 +679,7 @@
   }
 
   function render(s) {
+    closePop();
     var list = filterDoctors(DOCTORS, {
       query: s.query,
       specialty: s.specialty,
@@ -382,7 +693,7 @@
       : sortDoctors(list, s.sort, s.origin);
 
     var count = sorted.length;
-    $("results-count").textContent = count + (count === 1 ? " doctor" : " doctors");
+    $("results-count").textContent = trn("dir.count", count);
 
     var grid = $("grid");
     var frag = document.createDocumentFragment();
@@ -395,6 +706,7 @@
 
     syncControls(s);
     renderHooks.forEach(function (cb) { try { cb(sorted, s); } catch (e) { console.error(e); } });
+    pinHighlighted(); // deep-linked card stays centred + focused through early re-renders
   }
 
   function syncControls(s) {
@@ -406,9 +718,8 @@
     Array.prototype.forEach.call(document.querySelectorAll("#hospital-checks input"), function (cb) {
       cb.checked = s.hospitals.indexOf(cb.value) !== -1;
     });
-    var status = $("location-status");
     if (s.origin) {
-      status.textContent = s.origin.kind === "gps" ? "Using your current location." : "Distances from " + s.origin.label + ".";
+      setLocStatus(s.origin.kind === "gps" ? "dir.loc.gps" : "dir.loc.area", s.origin.kind === "gps" ? null : { area: s.origin.label });
     }
   }
 
@@ -418,11 +729,15 @@
     var seen = {};
     DOCTORS.forEach(function (d) { if (d.specialty) seen[d.specialty] = true; });
     var select = $("specialty");
-    Object.keys(seen).sort(function (a, b) { return a.localeCompare(b, "en"); }).forEach(function (s) {
-      var opt = el("option", null, s);
+    var keep = select.value;
+    Array.prototype.slice.call(select.options).forEach(function (o) { if (o.value) o.remove(); });
+    var lang = uiLang();
+    Object.keys(seen).sort(function (a, b) { return specLabel(a).localeCompare(specLabel(b), lang); }).forEach(function (s) {
+      var opt = el("option", null, specLabel(s));
       opt.value = s;
       select.appendChild(opt);
     });
+    select.value = keep;
   }
 
   /** doctors.html?specialty=<exact specialty>: preselects the filter if that specialty exists in the data. */
@@ -472,22 +787,22 @@
       state.origin = area
         ? { lat: area.lat, lng: area.lng, label: area.name, kind: "area" }
         : (lastGpsOrigin ? Object.assign({}, lastGpsOrigin) : null);
-      if (!state.origin) $("location-status").textContent = "Location not set.";
+      if (!state.origin) setLocStatus("dir.loc.notSet");
       render(state);
     });
   }
 
   function showAreaPicker(message) {
     $("area-picker").hidden = false;
-    if (message) $("location-status").textContent = message;
+    if (message) setLocStatus(message);
   }
 
   function requestLocation(userInitiated) {
     if (!("geolocation" in navigator)) {
-      showAreaPicker("Location is not available in this browser. Pick an area instead.");
+      showAreaPicker("dir.loc.unavailable");
       return;
     }
-    if (userInitiated) $("location-status").textContent = "Finding your location…";
+    if (userInitiated) setLocStatus("dir.loc.finding");
     navigator.geolocation.getCurrentPosition(function (pos) {
       lastGpsOrigin = {
         lat: pos.coords.latitude,
@@ -503,8 +818,8 @@
       render(state);
     }, function (err) {
       var msg = err && err.code === 1
-        ? "Location permission was denied. Pick an area instead."
-        : "We couldn't get your location. Pick an area instead.";
+        ? "dir.loc.denied"
+        : "dir.loc.failed";
       if (!state.origin) showAreaPicker(msg);
       else $("area-picker").hidden = false;
     }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
@@ -529,9 +844,7 @@
       }, null);
     }
     var when = formatDate(dateIso);
-    $("footer-source").textContent =
-      "Data collected from public pages of each network" + (when ? " on " + when : "") +
-      ". Prices may change; confirm with the clinic before booking.";
+    $("footer-source").textContent = when ? tr("dir.footer.sourceDate", { date: when }) : tr("dir.footer.source");
 
     var manualCount = DOCTORS.filter(function (d) { return d.manual === true; }).length;
     if (manualCount) {
@@ -539,11 +852,9 @@
       p.replaceChildren();
       var tag = el("span", "badge badge-manual");
       tag.appendChild(icon("hand"));
-      tag.appendChild(el("span", null, "Manually collected"));
+      tag.appendChild(el("span", null, tr("dir.manual")));
       p.appendChild(tag);
-      p.appendChild(document.createTextNode(
-        " " + manualCount + (manualCount === 1 ? " record was" : " records were") +
-        " copied by hand from the network's public website where automatic collection was not possible."));
+      p.appendChild(document.createTextNode(" " + trn("dir.footer.manual", manualCount)));
       p.hidden = false;
     }
   }
@@ -551,11 +862,11 @@
   function showNoData() {
     var notice = $("data-notice");
     notice.replaceChildren();
-    notice.appendChild(el("h2", null, "No data yet, run the scraper"));
-    var p = el("p", null, "The file data/doctors.js was not found or contains no doctors. Run the scraper to generate it, then reload this page.");
+    notice.appendChild(el("h2", null, tr("dir.nodata.title")));
+    var p = el("p", null, tr("dir.nodata.text"));
     notice.appendChild(p);
     notice.hidden = false;
-    $("results-count").textContent = "0 doctors";
+    $("results-count").textContent = trn("dir.count", 0);
     $("grid").hidden = true;
     $("empty").hidden = true;
   }
@@ -582,6 +893,8 @@
   }
 
   function init() {
+    setLocStatus("dir.loc.notSet");
+    if (window.MedIndexNav && window.MedIndexNav.ready) setTimeout(onAuth, 0);
     setupMobileFilters();
     populateHospitals();
     populateAreas();
@@ -596,6 +909,8 @@
     populateSpecialties();
     var preset = specialtyFromUrl();
     if (preset) state.specialty = preset;
+    var linked = doctorFromUrl();
+    if (linked) revealDoctor(linked);
 
     $("filters-form").addEventListener("submit", function (e) { e.preventDefault(); });
     $("search").addEventListener("input", function (e) { state.query = e.target.value; render(state); });
@@ -607,7 +922,69 @@
     $("use-location").addEventListener("click", function () { requestLocation(true); });
 
     render(state);
+    if (linked) focusLinkedDoctor(linked);
     requestLocation(false);
+  }
+
+  /** doctors.html?doctor=<id>: validated positive integer that exists in the data. */
+  function doctorFromUrl() {
+    var v = null;
+    try { v = new URLSearchParams(window.location.search).get("doctor"); } catch (e) { return null; }
+    if (!v || !/^[1-9]\d{0,8}$/.test(v)) return null;
+    var id = +v;
+    return DOCTORS.filter(function (d) { return d.id === id; })[0] || null;
+  }
+  /** Clears only the filters that would hide this doctor. */
+  function revealDoctor(d) {
+    state.query = "";
+    if (state.specialty && state.specialty !== d.specialty) state.specialty = "";
+    if (state.hospitals.indexOf(d.hospital) === -1 && NETWORKS.indexOf(d.hospital) !== -1) state.hospitals.push(d.hospital);
+    if (state.cnasOnly && d.acceptsCNAS !== true) state.cnasOnly = false;
+    state.highlight = d.id;
+  }
+  function focusLinkedDoctor(d) {
+    pinUntil = Date.now() + 3000;
+    var unpin = function () {
+      pinUntil = 0;
+      ["wheel", "touchstart", "keydown", "mousedown"].forEach(function (t) { window.removeEventListener(t, unpin, true); });
+    };
+    ["wheel", "touchstart", "keydown", "mousedown"].forEach(function (t) { window.addEventListener(t, unpin, true); });
+    setTimeout(unpin, 3000);
+    var go = function () {
+      var li = document.querySelector('#grid li[data-doctor-id="' + d.id + '"]');
+      if (!li) return;
+      var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      li.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+      var card = li.querySelector(".card");
+      if (card) { try { card.focus({ preventScroll: true }); } catch (e) { card.focus(); } }
+    };
+    if (window.requestAnimationFrame) window.requestAnimationFrame(function () { setTimeout(go, 30); }); else setTimeout(go, 30);
+    setTimeout(function () {
+      if (state.highlight !== d.id) return;
+      state.highlight = null;
+      Array.prototype.forEach.call(document.querySelectorAll("#grid .card.is-highlighted"), function (c) { c.classList.remove("is-highlighted"); });
+    }, 8000);
+  }
+
+  /* Language switch: re-translate everything app.js renders, keeping filters, sort and scroll. */
+  var langHooks = [];
+  function onLangChange() {
+    specHayCache = {};
+    if ($("mi-fav-live")) $("mi-fav-live").textContent = "";
+    if ($("specialty")) populateSpecialties();
+    if (locStatus) setLocStatus(locStatus.key, locStatus.vars);
+    if ($("footer-source")) renderFooter();
+    langHooks.forEach(function (cb) { try { cb(uiLang()); } catch (e) { console.error(e); } });
+    if (DOCTORS.length && $("grid")) rerenderKeepScroll();
+    else if ($("results-count") && !DOCTORS.length) $("results-count").textContent = trn("dir.count", 0);
+  }
+  document.addEventListener("medindex:lang", onLangChange);
+
+  /* Auth / Premium changes and new reviews: refetch distinctions; favourites load once per user. */
+  function onAuth() { loadFavourites(); refreshDistinctions(); }
+  document.addEventListener("medindex:auth", function () { setTimeout(onAuth, 0); });
+  if (window.MedIndex && window.MedIndex.reviews && typeof window.MedIndex.reviews.onChange === "function") {
+    window.MedIndex.reviews.onChange(function () { refreshDistinctions(); });
   }
 
   // Expose pure functions for console testing during the demo.
@@ -682,7 +1059,21 @@
       }
       setSortEnabled(key, enabled);
     },
-    setSortEnabled: setSortEnabled
+    setSortEnabled: setSortEnabled,
+    /* i18n + Premium helpers shared with assistant/ui.js */
+    tr: tr,
+    trn: trn,
+    uiLang: uiLang,
+    specLabel: specLabel,
+    kmText: kmText,
+    distText: distText,
+    formatDate: formatDate,
+    buildNameRow: buildNameRow,
+    buildHeart: buildHeart,
+    onLangChange: function (cb) { if (typeof cb === "function") langHooks.push(cb); },
+    /** Test/debug snapshot. */
+    premiumState: function () { return { distinctions: Object.keys(prem.distinct).map(Number), favourites: Object.keys(prem.favs).map(Number), favLoaded: prem.favLoaded, favDisabled: prem.favDisabled }; },
+    refreshPremium: function () { prem.favLoaded = false; prem.favUser = undefined; onAuth(); }
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

@@ -76,6 +76,15 @@ OBGYN_ROW = "Consultatie obstetrica-ginecologie"
 OBGYN_PROF_ROW = "Consultatie obstetrica-ginecologie medic profesor"
 IN_SCOPE = set(PRICE_STEMS) | {OBGYN}
 
+# General Practitioner / Family Doctor step: the team listed on the
+# family-medicine specialty page, in published order, until GP_LIMIT valid
+# records. Price: the single rank-independent /pret row below.
+GP_URL = BASE + "/medicina-de-familie"
+GP_SPEC = "Medicină de familie"
+GP_ROW = "Consultatie medicina generala/medicina de familie"
+GP_LIMIT = 2
+GP_MAX_PROFILES = 6
+
 _COORD_RE = re.compile(r"!2d(-?\d+\.\d+)!3d(-?\d+\.\d+)")
 # on _key() text (lowercase, no diacritics): "consultatii <specialties> cu decontare cas"
 _CAS_BANNER_RE = re.compile(r"^consultatii (.+?) cu decontare (?:cas|cnas)\b")
@@ -314,7 +323,9 @@ def build_record(item: dict, locs: dict, prices: dict) -> dict:
         service, price = own[0]
         source = url
     else:
-        if ro_spec == OBGYN:
+        if ro_spec == GP_SPEC:
+            service = GP_ROW
+        elif ro_spec == OBGYN:
             if is_prof:
                 service = OBGYN_PROF_ROW
             elif is_conf:
@@ -365,6 +376,44 @@ def build_record(item: dict, locs: dict, prices: dict) -> dict:
     }
 
 
+def collect_gp() -> list[dict]:
+    """Doctor cards of the family-medicine specialty page whose specialty is GP_SPEC."""
+    s = _soup(GP_URL)
+    items = []
+    for a in s.select("div.listing-medici a.news-item"):
+        h6 = a.select_one("h6")
+        spec = h6.find(string=True, recursive=False).strip() if h6 else ""
+        if spec == GP_SPEC:
+            items.append({"url": urljoin(BASE, a.get("href", "")), "spec": spec,
+                          "name": _txt(a.select_one("h3"))})
+    return items
+
+
+def scrape_gp(locs: dict, prices: dict, seen_urls: set[str]) -> list[dict]:
+    out: list[dict] = []
+    kept = tried = 0
+    try:
+        items = collect_gp()
+    except Exception as e:  # noqa: BLE001
+        _log(f"GP page failed: {e}")
+        return out
+    for it in items:
+        if kept >= GP_LIMIT or tried >= GP_MAX_PROFILES:
+            break
+        if it["url"] in seen_urls:
+            continue
+        tried += 1
+        try:
+            rec = build_record(it, locs, prices)
+        except Exception as e:  # noqa: BLE001
+            _log(f"GP profile failed {it['url']}: {e}")
+            rec = {"name": it["name"], "_drop_reason": "profile fetch/parse error"}
+        out.append(rec)
+        if "_drop_reason" not in rec:
+            kept += 1
+    return out
+
+
 def scrape() -> list[dict]:
     locs = load_locations()
     prices = load_price_list()
@@ -385,6 +434,8 @@ def scrape() -> list[dict]:
             _log(f"profile failed {it['url']}: {e}")
             traceback.print_exc(file=sys.stderr)
             out.append({"name": it["name"], "_drop_reason": "profile fetch/parse error"})
+    done = {it["url"] for it in items if it["spec"] in IN_SCOPE}
+    out.extend(scrape_gp(locs, prices, done))
     return out
 
 

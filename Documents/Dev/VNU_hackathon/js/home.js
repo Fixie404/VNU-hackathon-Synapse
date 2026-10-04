@@ -5,6 +5,9 @@
   "use strict";
 
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  var I = window.MedIndexI18n || null;
+  function T(k, v) { return I ? I.t(k, v) : k; }
+  function num(n, o) { return I ? I.formatNumber(n, o) : String(n); }
 
   function $(id) { return document.getElementById(id); }
   function set(id, text) { var n = $(id); if (n) n.textContent = text; }
@@ -17,6 +20,7 @@
   function fmtDate(iso) {
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
     if (!m) return "";
+    if (I) return I.formatDate(iso);
     return (+m[3]) + " " + MONTHS[+m[2] - 1] + " " + m[1];
   }
 
@@ -34,19 +38,19 @@
       if (typeof d.priceRON === "number" && isFinite(d.priceRON) && d.priceRON > 0) prices.push(d.priceRON);
       if (typeof d.scrapedAt === "string" && d.scrapedAt > latest) latest = d.scrapedAt;
     });
-    set("st-doctors", String(list.length));
-    set("st-networks", String(Object.keys(networks).length));
-    set("st-specialties", String(Object.keys(specs).length));
+    set("st-doctors", num(list.length));
+    set("st-networks", num(Object.keys(networks).length));
+    set("st-specialties", num(Object.keys(specs).length));
     if (prices.length) {
       var min = Math.min.apply(null, prices), max = Math.max.apply(null, prices);
-      set("st-prices", min + "–" + max + " RON");
+      set("st-prices", num(min) + "–" + num(max) + " RON");
     } else {
       set("st-prices", "—");
     }
     var names = Object.keys(networks).sort().join(", ");
-    var src = "Computed live from the directory data" + (names ? " (" + names + ")" : "") + ".";
-    if (latest) src += " Prices collected on " + fmtDate(latest) + ".";
-    if (prices.length !== list.length) src += " " + prices.length + " of " + list.length + " doctors have a listed price.";
+    var src = T("home.stats.source", { names: names ? " (" + names + ")" : "" });
+    if (latest) src += " " + T("home.stats.collected", { date: fmtDate(latest) });
+    if (prices.length !== list.length) src += " " + T("home.stats.withPrice", { n: num(prices.length), total: num(list.length) });
     set("st-source", src);
     $("stats").hidden = false;
   }
@@ -65,22 +69,25 @@
     if (!d) return;
     set("pv-initials", initials(d.name));
     set("pv-name", d.name);
-    set("pv-spec", [d.specialty, d.medicalRank].filter(Boolean).join(" · "));
+    var rank = d.medicalRank && I && I.has("home.rank." + d.medicalRank) ? T("home.rank." + d.medicalRank) : d.medicalRank;
+    var spec = d.specialty && I && I.has("spec." + d.specialty) ? T("spec." + d.specialty) : d.specialty;
+    set("pv-spec", [spec, rank].filter(Boolean).join(" · "));
     set("pv-network", d.hospital || "—");
     set("pv-clinic", d.clinicName || d.area || "—");
-    set("pv-cnas", d.acceptsCNAS === true ? "Accepted" : d.acceptsCNAS === false ? "Not accepted" : "Unknown");
-    set("pv-price", d.priceRON + " RON");
+    set("pv-cnas", d.acceptsCNAS === true ? T("home.preview.accepted") : d.acceptsCNAS === false ? T("home.preview.notAccepted") : T("common.unknown"));
+    set("pv-price", num(d.priceRON) + " RON");
     $("hero-preview").hidden = false;
   }
 
   function init() {
-    set("tp-save", "Save " + yearlySavePct() + "%");
+    set("tp-save", T("plans.save", { pct: num(yearlySavePct()) }));
     var list = Array.isArray(window.DOCTORS) ? window.DOCTORS : null;
     if (!list || !list.length) return;
     stats(list);
     preview(list);
   }
 
+  if (I) I.onChange(init);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();

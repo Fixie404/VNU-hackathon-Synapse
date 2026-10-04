@@ -9,6 +9,10 @@
 <h1>MedIndex engine tests</h1>
 <pre id="out"></pre>
 <script src="../data/doctors.js"></script>
+<script>
+  // Dataset shim: an older data/doctors.js still says "Family Medicine"; the tests use the new GP label.
+  (window.DOCTORS || []).forEach(function (d) { if (d && d.specialty === "Family Medicine") d.specialty = "General Practitioner / Family Doctor"; });
+</script>
 <script src="../data/symptoms.js"></script>
 <script src="engine.js"></script>
 <script>
@@ -29,6 +33,7 @@
   function A(text, answers) { return E.analyze(text, answers || {}, AVAIL); }
   function first(r) { return r.suggestions[0] && r.suggestions[0].specialty; }
   function noRF(r) { return !r.redFlag; }
+  var GP = "General Practitioner / Family Doctor";
 
   try {
     ok("engine exists on window.MedIndex.engine", !!E);
@@ -45,18 +50,27 @@
     ok("3. child fever -> Pediatrics first", first(r) === "Pediatrics" && noRF(r), brief(r));
 
     r = A("dureri de cap frecvente și amețeli");
-    ok("4. headache + dizziness -> Neurology/Family Medicine, Medium",
-      (first(r) === "Neurology" || first(r) === "Family Medicine") && r.suggestions[0].confidence === "Medium", brief(r));
+    ok("4. headache + dizziness -> Neurology/GP, Medium",
+      (first(r) === "Neurology" || first(r) === GP) && r.suggestions[0].confidence === "Medium", brief(r));
 
     r = A("durere de genunchi când alerg");
     ok("5. knee pain when running -> Orthopedics first", first(r) === "Orthopedics" && noRF(r), brief(r));
 
+    r = A("nu știu ce am");
+    ok("6a. unplaceable -> clarify follow-up, no suggestions", r.followUp && r.followUp.id === "clarify" && r.suggestions.length === 0, brief(r));
+    // The engine forces the recommendation at message MAX_TURNS (answers.turn); the fallback is GP, always Low (< 40).
+    r = A("nu știu ce am", { turn: E.MAX_TURNS });
+    ok("6b. still unplaceable at the message cap -> GP, Low", first(r) === GP && r.suggestions[0].confidence === "Low", brief(r));
     r = A("mă simt rău");
-    ok("6a. vague -> clarify follow-up, no suggestions", r.followUp && r.followUp.id === "clarify" && r.suggestions.length === 0, brief(r));
-    // Updated: the engine now forces the recommendation at message 5 (answers.turn), not after one clarify;
-    // the fallback is always Low (confidenceScore < 40).
-    r = A("mă simt rău", { turn: 5 });
-    ok("6b. still vague at message 5 -> Family Medicine, Low", first(r) === "Family Medicine" && r.suggestions[0].confidence === "Low", brief(r));
+    ok("6c. vague malaise -> GP, Low, with a follow-up", first(r) === GP && r.suggestions[0].confidence === "Low" && !!r.followUp, brief(r));
+    r = A("am nevoie de o adeverință medicală");
+    ok("6d. medical certificate -> GP, Medium", first(r) === GP && r.suggestions[0].confidence === "Medium", brief(r));
+    r = A("vreau un control general");
+    ok("6e. general check-up -> GP, Medium", first(r) === GP && r.suggestions[0].confidence === "Medium", brief(r));
+    r = A("medic de familie");
+    ok("6f. family doctor named -> GP, >= 60", first(r) === GP && r.suggestions[0].confidenceScore >= 60, brief(r));
+    r = E.analyze("vreau un control general", {}, ["Family Medicine", "Dermatology"]);
+    ok("6g. alias: old dataset label 'Family Medicine' still resolves", first(r) === "Family Medicine" && !r.suggestions[0].originalSpecialty, brief(r));
 
     // ---- English variants
     r = A("rash and itching");
@@ -158,7 +172,7 @@
     // ---- Required keyword coverage
     var cov = [["mă doare capul", "Neurology"], ["amețeli", "Neurology"], ["erupții", "Dermatology"], ["mâncărime", "Dermatology"],
       ["palpitații", "Cardiology"], ["durere în piept", "Cardiology"], ["durere de spate", "Orthopedics"], ["genunchi", "Orthopedics"],
-      ["febră", "Family Medicine"], ["tuse", "Pulmonology"], ["durere în gât", "ENT (Otorhinolaryngology)"],
+      ["febră", GP], ["tuse", "Pulmonology"], ["durere în gât", "ENT (Otorhinolaryngology)"],
       ["menstruație", "Obstetrics & Gynecology"], ["sarcină", "Obstetrics & Gynecology"], ["anxietate", "Psychiatry"],
       ["insomnie", "Psychiatry"], ["dureri de spate", "Orthopedics"], ["mă doare spatele", "Orthopedics"],
       ["pieptul mă doare", null], ["îmi întârzie menstruația", "Obstetrics & Gynecology"], ["sunt însărcinată", "Obstetrics & Gynecology"],
@@ -209,10 +223,10 @@
     ok("disclaimer ro", /orientare/.test(A("am erupții").disclaimer));
 
     // ---- Remap / fallback
-    r = E.analyze("am anxietate și stres", {}, ["Family Medicine", "Dermatology"]);
-    ok("Psychiatry missing -> Family Medicine with note", first(r) === "Family Medicine" && r.suggestions[0].originalSpecialty && /Family Medicine/.test(r.suggestions[0].note), brief(r) + JSON.stringify(r.suggestions[0]));
+    r = E.analyze("am anxietate și stres", {}, [GP, "Dermatology"]);
+    ok("Psychiatry missing -> GP with note", first(r) === GP && r.suggestions[0].originalSpecialty && /General Practitioner/.test(r.suggestions[0].note), brief(r) + JSON.stringify(r.suggestions[0]));
     r = A("am o problemă cu un dinte");
-    ok("Dentistry -> remapped to Family Medicine with note", first(r) === "Family Medicine" && r.suggestions[0].originalSpecialty === "Dentistry" && !!r.suggestions[0].note, JSON.stringify(r.suggestions));
+    ok("Dentistry -> remapped to GP with note", first(r) === GP && r.suggestions[0].originalSpecialty === "Dentistry" && !!r.suggestions[0].note, JSON.stringify(r.suggestions));
     r = A("I have allergies");
     ok("Allergology remapped", r.suggestions.length && r.suggestions[0].originalSpecialty === "Allergology", JSON.stringify(r.suggestions));
 
@@ -269,7 +283,7 @@
     var cx = cTop("am erupții pe piele și dureri de genunchi");
     ok("conf: conflicting symptom lowers the top score + 'conflict' factor", cx.confidenceScore < cd1.confidenceScore &&
       cx.confidenceFactors.some(function (f) { return f.kind === "conflict"; }), JSON.stringify(cx));
-    ok("conf: Family Medicine fallback < 40", cTop("mă simt rău", { turn: 5 }).confidenceScore < 40);
+    ok("conf: GP fallback < 40", cTop("nu știu ce am", { turn: E.MAX_TURNS }).confidenceScore < 40);
     ok("conf: child cough + facts changes the score", cTop("copilul meu tușește", { who: "child", duration: "3d2w" }).confidenceScore !== cTop("copilul meu tușește").confidenceScore);
   } catch (e) {
     failed++; lines.push("FAIL exception: " + e + "\n" + (e.stack || ""));

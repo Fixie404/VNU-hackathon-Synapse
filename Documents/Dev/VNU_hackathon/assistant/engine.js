@@ -31,7 +31,7 @@
  *     "confidence score" block below (confidenceOf). Lower-ranked suggestions are never more
  *     confident than the one above them; a remapped suggestion is capped at 69 (Medium).
  *   - Child (answers.who === "child", or child words in the text unless who === "adult"):
- *     Pediatrics goes first (score = max(top + 1, 4)), Family/Internal Medicine are dropped
+ *     Pediatrics goes first (score = max(top + 1, 4)), GP / Internal Medicine are dropped
  *     and Orthopedics becomes Pediatric Orthopedics when available.
  *
  * Conversation (natural chat, at most MAX_TURNS = 10 user messages per round before recommending):
@@ -42,7 +42,13 @@
  *       * otherwise the first unknown fact in the order who -> duration -> severity that was not
  *         asked yet in this round (a fact is asked at most once);
  *     and no question (= the recommendation) once everything is known or at turn >= 5.
- *     If nothing matched by turn 5 -> Family Medicine (Low).
+ *     If nothing matched by message MAX_TURNS -> GP (Low).
+ *
+ * GP = "General Practitioner / Family Doctor" (the canonical label). The older dataset label
+ * "Family Medicine" is an alias: resolveSpecialty() maps between them and returns the exact string
+ * of the loaded dataset (the GP label when it is there). GP is the first-contact option: general /
+ * vague complaints, check-ups, prescriptions, vaccinations, certificates and the family doctor named
+ * directly have GP rules (data/symptoms.js); 3+ unrelated complaints put GP first (MIXED_REASON).
  *   - Each fact question has optional answer chips (FOLLOWUPS[id].o); the user may also type.
  *   - converse(userMessages, asked, avail, opts) = extractFacts + analyze for a whole round.
  */
@@ -64,6 +70,10 @@
   var LLM_MAX_CHARS = 1500;
   var MIN_SCORE = 2;
   var MAX_TURNS = 10;         // user messages per round before a recommendation is forced
+  var GP = "General Practitioner / Family Doctor";
+  // Other names of the GP specialty (older datasets / model output) -> the canonical label.
+  var SPECIALTY_ALIASES = { "Family Medicine": GP, "General Practitioner": GP, "General Practice": GP, "Family Doctor": GP,
+    "GP": GP, "Medicină de familie": GP, "Medicina de familie": GP, "Medic de familie": GP };
 
   // ------------------------------------------------------------------ strings
   var T = {
@@ -123,6 +133,10 @@
       en: "When symptoms are hard to place, a family doctor is a safe first step and can refer you to the right specialist.",
       ro: "Când simptomele sunt greu de încadrat, medicul de familie este un prim pas sigur și vă poate trimite la specialistul potrivit."
     },
+    MIXED_REASON: {
+      en: "When several unrelated complaints come together, a family doctor can look at the whole picture first and refer you to the right specialists.",
+      ro: "Când apar împreună mai multe probleme fără legătură între ele, medicul de familie poate privi întâi situația de ansamblu și vă poate trimite la specialiștii potriviți."
+    },
     Q_HINT: {
       en: "I have a few quick questions so I can point you to the right specialist.",
       ro: "Am câteva întrebări scurte, ca să vă pot îndruma spre specialistul potrivit."
@@ -146,6 +160,7 @@
   var SPECIALTY_RO = {
     "Psychology": "Psihologie", "Psychiatry": "Psihiatrie", "Pulmonology": "Pneumologie", "Allergology": "Alergologie",
     "Nephrology": "Nefrologie", "Dentistry": "Stomatologie", "Pediatrics": "Pediatrie", "Family Medicine": "Medicină de familie",
+    "General Practitioner / Family Doctor": "Medic de familie",
     "Internal Medicine": "Medicină internă", "Urology": "Urologie", "Orthopedics": "Ortopedie",
     "Pediatric Orthopedics": "Ortopedie pediatrică", "Sports Medicine": "Medicină sportivă", "Rheumatology": "Reumatologie",
     "Endocrinology": "Endocrinologie", "Gastroenterology": "Gastroenterologie", "Cardiology": "Cardiologie",
@@ -331,17 +346,31 @@
     return toSet(list);
   }
 
+  /** Canonical specialty label ("Family Medicine" -> the GP label); other names unchanged. */
+  function canonSpecialty(s) { return has(SPECIALTY_ALIASES, s) ? SPECIALTY_ALIASES[s] : s; }
+  function sameSpecialty(a, b) { return a === b || canonSpecialty(a) === canonSpecialty(b); }
+  /** The exact available string for `specialty` or one of its aliases (no fallback chain), or null. */
+  function availName(specialty, availSet) {
+    var c = canonSpecialty(specialty);
+    if (has(availSet, c)) return c;
+    if (has(availSet, specialty)) return specialty;
+    for (var k in SPECIALTY_ALIASES) if (has(SPECIALTY_ALIASES, k) && SPECIALTY_ALIASES[k] === c && has(availSet, k)) return k;
+    return null;
+  }
+
   // Returns the exact available specialty string for `specialty`, or null.
   function resolveSpecialty(specialty, availSet) {
-    if (has(availSet, specialty)) return specialty;
-    var seen = {}, queue = (fallbacks()[specialty] || []).slice();
-    queue.push("Family Medicine", "Internal Medicine");
+    var direct = availName(specialty, availSet);
+    if (direct) return direct;
+    var fb = fallbacks(), seen = {}, queue = (fb[canonSpecialty(specialty)] || fb[specialty] || []).slice();
+    queue.push(GP, "Internal Medicine");
     while (queue.length) {
-      var s = queue.shift();
+      var s = canonSpecialty(queue.shift());
       if (seen[s]) continue;
       seen[s] = true;
-      if (has(availSet, s)) return s;
-      var more = fallbacks()[s];
+      var hit = availName(s, availSet);
+      if (hit) return hit;
+      var more = fb[s];
       if (more) queue = queue.concat(more);
     }
     return null;
@@ -735,7 +764,7 @@
    *                >= 0.15. Competitor evidence whose words overlap the top's own evidence is ignored
    *                ("swollen ankles" for Cardiology does not count for Orthopedics). rel = 1 for another
    *                body system, 0.5 when the competitor has only "general" evidence, 0.35 for a
-   *                generalist (Family / Internal Medicine) with non-general evidence or a child's
+   *                generalist (GP / Internal Medicine) with non-general evidence or a child's
    *                Pediatrics entry; a generalist with only general evidence is ignored, and a top
    *                that IS a generalist gets no conflict penalty.
    *   - vague      -6 when every matched rule is "general" (or no symptom matched at all);
@@ -747,7 +776,10 @@
    *   never above the one before it.
    * Pediatrics for a child: its evidence = every matched symptom rule (grouped into concepts) + the
    *   child itself (3) and it has no conflict penalty (a pediatrician sees all complaints).
-   * Family Medicine fallback after MAX_TURNS with nothing matched: 20 (Low).
+   * GP fallback after MAX_TURNS with nothing matched: 20 (Low).
+   * Mixed complaints (3+ unrelated body systems, none High, adult): GP goes first with
+   *   max(MIXED_MIN, min(MIXED_MAX, the top specialist's score)) and the factor
+   *   kind "conflict" labelled "mixed" (the complaints point in different directions; no extra penalty).
    * AI mode: each Kimi suggestion is re-scored from the LOCAL rules on the same conversation text
    *   (rateSuggestions); a specialty with no local evidence gets min(45, High 45 / Medium 40 / Low 25)
    *   and the factor "Based on the AI's reading of your description"; the list is re-sorted by score.
@@ -759,12 +791,12 @@
     EXTRA_EFF: 0.5, CONFLICT: 30, CONFLICT_MIN: 0.15, REL_GENERALIST: 0.35, REL_GENERAL_ONLY: 0.5, RELATED_SUPPORT: 0.5,
     ADJ_GAP: 2, ADJ_MAX_W: 2, VAGUE: 6, SHORT: 5, SHORT_WORDS: 1,
     FOLLOW: { who: 2, duration: 4, severity: 3 }, CHILD_W: 3, REMAP_CAP: 69, LLM_CAP: 45,
-    LLM_NO_LOCAL: { High: 45, Medium: 40, Low: 25 }, FALLBACK: 20, MIN: 10, MAX: 95, MEDIUM: 40, HIGH: 70 };
+    LLM_NO_LOCAL: { High: 45, Medium: 40, Low: 25 }, FALLBACK: 20, MIXED_N: 3, MIXED_MIN: 40, MIXED_MAX: 60, MIN: 10, MAX: 95, MEDIUM: 40, HIGH: 70 };
   var SPEC_MULT = { strong: 1.6, specific: 1.4, moderate: 1.0, general: 0.7 };
-  var GENERALISTS = toSet(["Family Medicine", "Internal Medicine"]);
+  var GENERALISTS = toSet([GP, "Family Medicine", "Internal Medicine"]);
   var RELATED_GROUPS = [["Orthopedics", "Rheumatology", "Sports Medicine", "Pediatric Orthopedics"],
     ["ENT (Otorhinolaryngology)", "Pulmonology"], ["Gastroenterology", "General Surgery"], ["Urology", "Nephrology"],
-    ["Psychiatry", "Psychology"], ["Family Medicine", "Internal Medicine"], ["Endocrinology", "Internal Medicine"]];
+    ["Psychiatry", "Psychology"], [GP, "Internal Medicine"], ["Endocrinology", "Internal Medicine"]];
   var ADJ_WORDS = toSet(["pe", "in", "la", "de", "din", "pentru", "on", "of", "at", "my", "the", "a", "al", "ale", "mea",
     "meu", "mele", "mei", "your", "around", "near"]);
   var FACTOR_TEXT = {
@@ -778,7 +810,8 @@
     child: { en: "It is for a child, so a pediatrician is a good first stop", ro: "Este pentru un copil, deci medicul pediatru este un prim pas potrivit" },
     remap: { en: "The ideal specialist is not in this list, so this is the closest option", ro: "Specialistul ideal nu este în această listă, deci aceasta este cea mai apropiată opțiune" },
     ai: { en: "Based on the AI's reading of your description", ro: "Pe baza interpretării AI a descrierii dumneavoastră" },
-    fallback: { en: "Your symptoms are hard to place, so a family doctor is a safe first step", ro: "Simptomele sunt greu de încadrat, deci medicul de familie este un prim pas sigur" }
+    fallback: { en: "Your symptoms are hard to place, so a family doctor is a safe first step", ro: "Simptomele sunt greu de încadrat, deci medicul de familie este un prim pas sigur" },
+    mixed: { en: "Several unrelated complaints: a family doctor can look at them together first", ro: "Mai multe probleme fără legătură: medicul de familie le poate evalua întâi împreună" }
   };
   function factor(kind, key, lang) { return { kind: kind, label: pick(FACTOR_TEXT[key || kind], lang) }; }
   function confidenceLabel(score) { return score >= CONF_CFG.HIGH ? "High" : (score >= CONF_CFG.MEDIUM ? "Medium" : "Low"); }
@@ -788,6 +821,7 @@
   }
   function overlaps(a, b) { return a[0] <= b[1] && b[0] <= a[1]; }
   function related(a, b) {
+    a = canonSpecialty(a); b = canonSpecialty(b);
     for (var i = 0; i < RELATED_GROUPS.length; i++) if (RELATED_GROUPS[i].indexOf(a) >= 0 && RELATED_GROUPS[i].indexOf(b) >= 0) return true;
     return false;
   }
@@ -928,14 +962,14 @@
       var target = resolveSpecialty(rule.specialty, avail);
       if (!target) continue;
       if (!acc[target]) { acc[target] = entry(-1); order.push(target); }
-      var a = acc[target], remapped = target !== rule.specialty;
+      var a = acc[target], remapped = !sameSpecialty(target, rule.specialty);
       a.score += rule.weight;
       if (!remapped) a.direct += rule.weight;
       // The strongest matched rule decides the reason; on a tie a direct rule wins.
       if (rule.weight > a.bestW || (rule.weight === a.bestW && !remapped && a.origin)) {
         a.bestW = rule.weight;
         a.origin = remapped ? rule.specialty : null;
-        a.best = remapped ? (reasons[target] || rule.reason) : rule.reason;
+        a.best = remapped ? (reasons[canonSpecialty(target)] || reasons[target] || rule.reason) : rule.reason;
       }
       if (rule.urgent) a.urgent.push(rule.urgent);
       var item = evidenceItem(rule, i, spans);
@@ -955,14 +989,14 @@
         delete acc["Orthopedics"];
       }
       var ped = resolveSpecialty("Pediatrics", avail);
-      ["Family Medicine", "Internal Medicine"].forEach(function (s) { if (s !== ped) delete acc[s]; });
+      Object.keys(acc).forEach(function (s) { if (GENERALISTS[canonSpecialty(s)] && s !== ped) delete acc[s]; });
       if (ped) {
         var pedEntry = acc[ped] || (order.push(ped), acc[ped] = entry(0));
         pedEntry.score = Math.max(symptomTop + 1, 4);
         pedEntry.best = reasons["Pediatrics"];
         pedEntry.pediatric = true;
         pedEntry.origin = ped !== "Pediatrics" ? "Pediatrics" : null;
-        if (ped !== "Pediatrics") pedEntry.best = reasons[ped] || pedEntry.best;
+        if (ped !== "Pediatrics") pedEntry.best = reasons[canonSpecialty(ped)] || reasons[ped] || pedEntry.best;
         // A pediatrician sees every complaint of a child: all symptom evidence + the child itself.
         pedEntry.ev = all.concat([{ rule: -1, w: CONF_CFG.CHILD_W, spec: "moderate", eff: CONF_CFG.CHILD_W, spans: [], child: true }]);
       }
@@ -1083,11 +1117,11 @@
         result.followUp = makeClarify(lang, asked.filter(function (a) { return a === "clarify"; }).length);
         return result;
       }
-      var fm = resolveSpecialty("Family Medicine", avail);
+      var fm = resolveSpecialty(GP, avail);
       if (fm) {
         var sug = setConfidence({ specialty: fm, reason: pick(T.FALLBACK_REASON, lang), score: 0 }, CONF_CFG.FALLBACK,
           [factor("vague", "fallback", lang)]);
-        if (fm !== "Family Medicine") { sug.originalSpecialty = "Family Medicine"; sug.note = remapNote("Family Medicine", fm, lang); }
+        if (!sameSpecialty(fm, GP)) { sug.originalSpecialty = GP; sug.note = remapNote(GP, fm, lang); }
         result.suggestions.push(sug);
       }
       addUrgency(result, [], severity, duration, lang);
@@ -1111,6 +1145,7 @@
         if (urgentNotes.indexOf(un) < 0) urgentNotes.push(un);
       }
     }
+    if (!isChild) mixedComplaints(result, acc, avail, lang);
     addUrgency(result, urgentNotes, severity, duration, lang);
 
     // 7. One natural question for the first missing fact (each fact is asked at most once per round).
@@ -1125,6 +1160,34 @@
       }
     }
     return result;
+  }
+
+  /**
+   * Several unrelated complaints (MIXED_N+ body systems whose evidence does not overlap, none of them
+   * High): the family doctor is the sensible first contact, so GP goes first. The specialists stay
+   * after it (at most 3 suggestions, never more confident than GP). Mutates result.suggestions.
+   */
+  function mixedComplaints(result, acc, avail, lang) {
+    var C = CONF_CFG, sugs = result.suggestions, gp = resolveSpecialty(GP, avail);
+    if (!gp || !sugs.length || sugs[0].confidenceScore >= C.HIGH) return;
+    var picked = [], spans = [];
+    Object.keys(acc).sort(function (a, b) { return acc[b].score - acc[a].score; }).forEach(function (k) {
+      var e = acc[k];
+      if (GENERALISTS[canonSpecialty(k)] || e.pediatric || e.score < MIN_SCORE) return;
+      if (picked.some(function (p) { return related(p, k); })) return;
+      var own = [];
+      e.ev.forEach(function (x) { own = own.concat(x.spans); });
+      if (own.some(function (sp) { return spans.some(function (o) { return overlaps(o, sp); }); })) return;
+      picked.push(k); spans = spans.concat(own);
+    });
+    if (picked.length < C.MIXED_N) return;
+    var score = clampScore(Math.max(C.MIXED_MIN, Math.min(C.MIXED_MAX, sugs[0].confidenceScore)));
+    var gpSug = setConfidence({ specialty: gp, reason: pick(T.MIXED_REASON, lang), score: sugs[0].score },
+      score, [factor("conflict", "mixed", lang)]);
+    if (!sameSpecialty(gp, GP)) { gpSug.originalSpecialty = GP; gpSug.note = remapNote(GP, gp, lang); }
+    var rest = sugs.filter(function (s) { return s.specialty !== gp; }).slice(0, 2);
+    rest.forEach(function (s) { if (s.confidenceScore > score) setConfidence(s, score, s.confidenceFactors); });
+    result.suggestions = [gpSug].concat(rest);
   }
 
   /**
@@ -1301,12 +1364,13 @@
     if (Array.isArray(data.suggestions)) {
       for (var i = 0; i < data.suggestions.length && out.suggestions.length < 3; i++) {
         var s = data.suggestions[i];
-        if (!s || typeof s.specialty !== "string" || !has(avail, s.specialty) || seen[s.specialty]) continue;
-        seen[s.specialty] = true;
+        var spName = s && typeof s.specialty === "string" ? availName(s.specialty, avail) : null; // alias-tolerant
+        if (!spName || seen[spName]) continue;
+        seen[spName] = true;
         var reason = fix112(str(s.reason, 300) || "");
         if (reason && (isMedicalUnsafe(reason) || isInventedFact(reason) || mentionsEmergency(reason))) reason = "";
         reason = stripLinks(reason);
-        out.suggestions.push({ specialty: s.specialty, reason: reason,
+        out.suggestions.push({ specialty: spName, reason: reason,
           confidence: CONF_OK[String(s.confidence || "").toLowerCase()] || "Low", score: 0 });
       }
     }
@@ -1383,6 +1447,8 @@
     matchesText: matchesText,
     detectLanguage: detectLanguage,
     resolveSpecialty: function (specialty, avail) { return resolveSpecialty(specialty, resolveAvail(avail)); },
+    canonSpecialty: canonSpecialty,
+    GP: GP,
     analyze: analyze,
     analyzeAsync: analyzeAsync,
     extractFacts: extractFacts,

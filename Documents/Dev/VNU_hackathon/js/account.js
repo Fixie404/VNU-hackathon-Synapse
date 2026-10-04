@@ -3,6 +3,8 @@
   "use strict";
 
   var API = window.MedIndexAPI;
+  var L = window.MedIndexAccountI18n;
+  var setText = L.setText, setAttr = L.setAttr, resolve = L.resolve;
 
   function $(id) { return document.getElementById(id); }
   function show(el, on) { if (el) el.hidden = !on; }
@@ -39,21 +41,21 @@
   }
   function identifierHint(v) {
     v = v.trim();
-    if (!v) return "Enter your email or phone number.";
-    if (v.indexOf("@") !== -1) return EMAIL_RE.test(v) ? "" : "That email doesn't look right (e.g. name@example.com).";
-    if (/^[+\d\s().-]+$/.test(v)) return isPhone(v) ? "" : "Enter a valid phone number, e.g. 0722 123 456 or +40 722 123 456.";
-    return "Enter an email address or a phone number.";
+    if (!v) return "account.val.idEmpty";
+    if (v.indexOf("@") !== -1) return EMAIL_RE.test(v) ? "" : "account.val.emailBad";
+    if (/^[+\d\s().-]+$/.test(v)) return isPhone(v) ? "" : "account.val.phoneBad";
+    return "account.val.idKind";
   }
 
-  /* ---------- field errors ---------- */
+  /* ---------- field errors (msg = a message spec, re-translated on a language change) ---------- */
   function setFieldError(input, msg) {
     var err = $(input.id + "-error");
-    if (err) err.textContent = msg || "";
+    if (err) setText(err, msg || "");
     if (msg) input.setAttribute("aria-invalid", "true");
     else input.removeAttribute("aria-invalid");
   }
   function setFormError(el, msg) {
-    el.textContent = msg || "";
+    setText(el, msg || "");
     show(el, !!msg);
   }
   function clearErrors(form) {
@@ -61,15 +63,18 @@
     for (var i = 0; i < inputs.length; i++) setFieldError(inputs[i], "");
   }
 
+  // Returns a message spec: a known key, or {raw} for an unknown server message.
   function friendly(err) {
     if (!err) return "";
     if (err.status === 0) {
-      if (err.error === "offline") return "Accounts need the local server.";
-      if (err.error === "timeout") return "The server took too long to answer. Please try again.";
-      return "Can't reach the server. Is python3 server/proxy.py running?";
+      if (err.error === "offline") return "account.err.offline";
+      if (err.error === "timeout") return "account.err.timeout";
+      return "account.err.unreachable";
     }
-    if (err.status === 429) return err.error && !/^Request failed/.test(err.error) ? err.error : "Too many attempts. Please wait a minute and try again.";
-    return err.error || "Something went wrong. Please try again.";
+    var known = L.errorKey(err.error);
+    if (known) return known;
+    if (!err.error || /^Request failed/.test(err.error)) return err.status === 429 ? "account.err.tooMany" : "account.err.generic";
+    return { raw: err.error };
   }
 
   /* ---------- views ---------- */
@@ -88,46 +93,54 @@
     if (!v) return "";
     var d = new Date(typeof v === "number" && v < 1e12 ? v * 1000 : v);
     if (isNaN(d.getTime())) return String(v);
-    try { return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }); }
-    catch (e) { return d.toDateString(); }
+    return L.formatDate(d, { day: "numeric", month: "long", year: "numeric" });
   }
 
-  function planLabel(plan) {
+  function planSpec(plan) {
     if (!plan) return "";
-    var s = String(plan);
-    return s.charAt(0).toUpperCase() + s.slice(1);
+    var s = String(plan).toLowerCase();
+    if (L.has("account.plan." + s)) return "account.plan." + s;
+    return { raw: s.charAt(0).toUpperCase() + s.slice(1) };
   }
 
   function renderProfile(user, statusMsg) {
-    var name = user.displayName || "MedIndex member";
-    $("profile-name").textContent = name;
-    $("profile-avatar").textContent = name.trim().charAt(0).toUpperCase() || "M";
-    var idType = user.identifierType ? String(user.identifierType) : "";
-    $("profile-identifier").textContent = (idType ? idType.charAt(0).toUpperCase() + idType.slice(1) + ": " : "") + (user.identifierMasked || "");
+    var custom = user.displayName ? String(user.displayName) : "";
+    if (custom) setText($("profile-name"), { raw: custom });
+    else setText($("profile-name"), "account.member");
+    setText($("profile-avatar"), { fn: function () { return ($("profile-name").textContent.trim().charAt(0) || "M").toUpperCase(); } });
+    var idType = user.identifierType ? String(user.identifierType).toLowerCase() : "";
+    var masked = user.identifierMasked || "";
+    if (idType) {
+      var typeSpec = L.has("account.idType." + idType) ? "account.idType." + idType : { raw: idType.charAt(0).toUpperCase() + idType.slice(1) };
+      setText($("profile-identifier"), { k: "account.idLine", v: { type: typeSpec, value: { raw: masked } } });
+    } else {
+      setText($("profile-identifier"), { raw: masked });
+    }
 
     var prem = user.premium || {};
     var planEl = $("profile-plan");
     if (prem.active) {
-      planEl.textContent = "Premium" + (prem.plan ? " · " + planLabel(prem.plan) : "");
+      setText(planEl, prem.plan ? { k: "account.plan.premiumWith", v: { plan: planSpec(prem.plan) } } : "account.plan.premium");
       planEl.className = "acct-plan acct-plan-premium";
-      $("link-premium-title").textContent = "Manage Premium";
-      $("link-premium-sub").textContent = "Plan, renewal and cancellation";
-      $("link-cloud-sub").textContent = "Your files and ChatBot History";
+      setText($("link-premium-title"), "account.link.managePremium");
+      setText($("link-premium-sub"), "account.link.managePremiumSub");
+      setText($("link-cloud-sub"), "account.link.cloudSubPremium");
     } else {
-      planEl.textContent = "Regular";
+      setText(planEl, "account.plan.regular");
       planEl.className = "acct-plan";
-      $("link-premium-title").textContent = "Go Premium";
-      $("link-premium-sub").textContent = "Unlock the Secure Medical Cloud";
-      $("link-cloud-sub").textContent = "Premium feature";
+      setText($("link-premium-title"), "account.link.goPremium");
+      setText($("link-premium-sub"), "account.link.goPremiumSub");
+      setText($("link-cloud-sub"), "account.link.cloudSubRegular");
     }
     var renews = prem.active && (prem.renewsAt || prem.since);
     show($("profile-renews-row"), !!renews);
     if (renews) {
-      $("profile-renews-label").textContent = prem.renewsAt ? "Renews" : "Member since";
-      $("profile-renews").textContent = formatDate(prem.renewsAt || prem.since);
+      setText($("profile-renews-label"), prem.renewsAt ? "account.renews" : "account.memberSince");
+      var when = prem.renewsAt || prem.since;
+      setText($("profile-renews"), { fn: function () { return formatDate(when); } });
     }
     var st = $("acct-status");
-    st.textContent = statusMsg || "";
+    setText(st, statusMsg || "");
     show(st, !!statusMsg);
     view("acct-profile");
   }
@@ -137,7 +150,7 @@
     view("acct-loading");
     API.me(function (err, data) {
       if (err) {
-        $("acct-error-text").textContent = friendly(err);
+        setText($("acct-error-text"), friendly(err));
         view("acct-error");
         return;
       }
@@ -176,8 +189,8 @@
     var note = $("acct-next-note");
     if (next) {
       var page = next.split(/[?#]/)[0].replace(/\.html$/i, "");
-      var labels = { premium: "Premium", cloud: "the Medical Cloud", doctors: "the doctor directory", index: "the home page" };
-      note.textContent = "Sign in or create an account to continue to " + (labels[page] || page) + ".";
+      var known = { premium: 1, cloud: 1, doctors: 1, index: 1 };
+      setText(note, { k: "account.next.note", v: { page: known[page] ? "account.next." + page : { raw: page } } });
       show(note, true);
     }
     selectTab(location.hash === "#signup" ? "signup" : "login", false);
@@ -186,14 +199,18 @@
 
   /* ---------- password toggles ---------- */
   var toggles = document.querySelectorAll(".acct-pass-toggle");
+  function paintToggle(btn, visible) {
+    setText(btn, visible ? "account.hide" : "account.show");
+    btn.setAttribute("aria-pressed", visible ? "true" : "false");
+    setAttr(btn, "aria-label", visible ? "account.hidePassword" : "account.showPassword");
+  }
   for (var ti = 0; ti < toggles.length; ti++) {
+    paintToggle(toggles[ti], false);
     toggles[ti].addEventListener("click", function () {
       var input = $(this.getAttribute("data-target"));
       var showing = input.type === "text";
       input.type = showing ? "password" : "text";
-      this.textContent = showing ? "Show" : "Hide";
-      this.setAttribute("aria-pressed", showing ? "false" : "true");
-      this.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+      paintToggle(this, !showing);
     });
   }
 
@@ -203,10 +220,11 @@
   var hintText = $("signup-password-hint-text");
   function updateHint() {
     var len = sPass.value.length;
-    if (!len) { hint.setAttribute("data-state", "idle"); hintText.textContent = "At least 8 characters"; return; }
-    if (len >= 8) { hint.setAttribute("data-state", "ok"); hintText.textContent = "At least 8 characters: done"; }
-    else { hint.setAttribute("data-state", "bad"); hintText.textContent = "At least 8 characters (" + (8 - len) + " more)"; }
+    if (!len) { hint.setAttribute("data-state", "idle"); setText(hintText, "account.hint.idle"); return; }
+    if (len >= 8) { hint.setAttribute("data-state", "ok"); setText(hintText, "account.hint.ok"); }
+    else { hint.setAttribute("data-state", "bad"); setText(hintText, { k: "account.hint.bad", v: { n: { raw: String(8 - len) } } }); }
   }
+  updateHint();
   sPass.addEventListener("input", function () { updateHint(); if (sPass.value.length >= 8) setFieldError(sPass, ""); });
 
   var sId = $("signup-identifier");
@@ -214,10 +232,13 @@
   sId.addEventListener("input", function () { if (sId.getAttribute("aria-invalid") && !identifierHint(sId.value)) setFieldError(sId, ""); });
 
   /* ---------- submit helpers ---------- */
+  // label = a message spec; the idle label comes back from the button's data-i18n key.
   function busy(btn, on, label) {
     btn.disabled = on;
-    if (on) { btn.setAttribute("data-label", btn.textContent); btn.textContent = label; }
-    else if (btn.getAttribute("data-label")) btn.textContent = btn.getAttribute("data-label");
+    if (on) { setText(btn, label); return; }
+    delete btn.__mxText;
+    var key = btn.getAttribute("data-i18n");
+    if (key) btn.textContent = L.t(key);
   }
 
   function applyServerError(err, form, map, formErrEl) {
@@ -243,11 +264,11 @@
     clearErrors(form);
     setFormError(errEl, "");
     var ok = true;
-    if (!idEl.value.trim()) { setFieldError(idEl, "Enter your email, phone or username."); ok = false; }
-    if (!pwEl.value) { setFieldError(pwEl, "Enter your password."); ok = false; }
+    if (!idEl.value.trim()) { setFieldError(idEl, "account.val.loginId"); ok = false; }
+    if (!pwEl.value) { setFieldError(pwEl, "account.val.loginPw"); ok = false; }
     if (!ok) { (idEl.value.trim() ? pwEl : idEl).focus(); return; }
     var btn = $("login-submit");
-    busy(btn, true, "Signing in…");
+    busy(btn, true, "account.login.busy");
     API.login(idEl.value.trim(), pwEl.value, function (err, data) {
       busy(btn, false);
       if (err) {
@@ -256,7 +277,7 @@
         return;
       }
       pwEl.value = "";
-      if (data && data.user) afterAuth(data.user, "You're signed in.");
+      if (data && data.user) afterAuth(data.user, "account.status.signedIn");
       else load();
     });
   });
@@ -273,23 +294,23 @@
     var first = null;
     var idMsg = identifierHint(idEl.value);
     if (idMsg) { setFieldError(idEl, idMsg); first = first || idEl; }
-    if (pwEl.value.length < 8) { setFieldError(pwEl, "Password must be at least 8 characters."); first = first || pwEl; updateHint(); }
+    if (pwEl.value.length < 8) { setFieldError(pwEl, "account.val.pwShort"); first = first || pwEl; updateHint(); }
     if (first) { first.focus(); return; }
     var btn = $("signup-submit");
-    busy(btn, true, "Creating account…");
+    busy(btn, true, "account.signup.busy");
     var ident = idEl.value.trim();
     if (ident.indexOf("@") === -1) ident = normPhone(ident);
     API.signup(ident, pwEl.value, nameEl.value.trim(), function (err, data) {
       busy(btn, false);
       if (err) {
         if (err.status === 409 && !err.field) err.field = "identifier";
-        if (err.status === 409 && /^Request failed/.test(err.error)) err.error = "An account with this email or phone already exists. Try signing in.";
+        if (err.status === 409 && (/^Request failed/.test(err.error) || err.error === "Account already exists")) err.error = "Account already exists";
         applyServerError(err, form, { identifier: idEl, password: pwEl, displayName: nameEl }, errEl);
         return;
       }
       pwEl.value = "";
       updateHint();
-      if (data && data.user) afterAuth(data.user, "Welcome! Your account is ready.");
+      if (data && data.user) afterAuth(data.user, "account.status.welcome");
       else load();
     });
   });
@@ -302,12 +323,12 @@
 
   $("logout-btn").addEventListener("click", function () {
     var btn = this;
-    busy(btn, true, "Signing out…");
+    busy(btn, true, "account.logout.busy");
     API.logout(function (err) {
       busy(btn, false);
       if (err && err.status !== 401) {
         var st = $("acct-status");
-        st.textContent = "Couldn't sign out: " + friendly(err);
+        setText(st, { k: "account.logout.failed", v: { error: friendly(err) } });
         show(st, true);
         return;
       }
@@ -329,6 +350,9 @@
     var nowIn = e && e.detail && "user" in e.detail ? !!e.detail.user : null;
     if (nowIn !== null && nowIn !== wasIn) load();
   });
+
+  // A language change re-resolves every message set above (L.setText); only the page title needs nothing more.
+  L.onLang(function () {});
 
   // Exposed for tests only (no auth data).
   window.MedIndexAccount = { safeNext: safeNext, isPhone: isPhone, identifierHint: identifierHint };

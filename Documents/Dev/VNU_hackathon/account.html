@@ -3,44 +3,45 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Your account – MedIndex</title>
-  <meta name="description" content="Sign in or create a MedIndex account to manage Premium and your Secure Medical Cloud.">
+  <title data-i18n="account.pageTitle">Your account – MedIndex</title>
+  <meta name="description" data-i18n-attr="content:account.metaDesc" content="Sign in or create a MedIndex account to manage Premium and your Secure Medical Cloud.">
   <link rel="stylesheet" href="css/site.css">
   <link rel="stylesheet" href="css/account.css">
+  <link rel="stylesheet" href="css/transitions.css">
 </head>
 <body class="acct-page">
-  <a class="acct-skip" href="#main">Skip to content</a>
+  <a class="acct-skip" href="#main" data-i18n="common.skip">Skip to content</a>
   <header id="site-header"></header>
 
   <main id="main" class="acct-main" tabindex="-1">
     <!-- file:// notice -->
     <section class="acct-card acct-offline" id="acct-offline" hidden aria-labelledby="offline-title">
-      <h1 id="offline-title" class="acct-title">Accounts need the local server</h1>
-      <p>You opened this page as a local file, so sign-in can't work here.</p>
+      <h1 id="offline-title" class="acct-title" data-i18n="account.offline.title">Accounts need the local server</h1>
+      <p data-i18n="account.offline.text">You opened this page as a local file, so sign-in can't work here.</p>
       <ol class="acct-steps">
-        <li>In a terminal, from the project folder, run <code>python3 server/proxy.py</code></li>
-        <li>Open <a href="http://127.0.0.1:8000/account.html">http://127.0.0.1:8000/account.html</a></li>
+        <li><span data-i18n="account.offline.step1">In a terminal, from the project folder, run</span> <code>python3 server/proxy.py</code></li>
+        <li><span data-i18n="account.offline.step2">Open</span> <a href="http://127.0.0.1:8000/account.html">http://127.0.0.1:8000/account.html</a></li>
       </ol>
     </section>
 
     <!-- loading -->
-    <p class="acct-loading" id="acct-loading" role="status">Loading your account…</p>
+    <p class="acct-loading" id="acct-loading" role="status" data-i18n="account.loading">Loading your account…</p>
 
     <!-- load error -->
     <section class="acct-card" id="acct-error" hidden aria-labelledby="error-title">
-      <h1 id="error-title" class="acct-title">We couldn't reach the server</h1>
+      <h1 id="error-title" class="acct-title" data-i18n="account.error.title">We couldn't reach the server</h1>
       <p id="acct-error-text" class="acct-muted"></p>
-      <button type="button" class="acct-btn acct-btn-primary" id="acct-retry">Try again</button>
+      <button type="button" class="acct-btn acct-btn-primary" id="acct-retry" data-i18n="account.retry">Try again</button>
     </section>
 
     <!-- logged out -->
     <section class="acct-card acct-auth" id="acct-auth" hidden aria-labelledby="auth-title">
-      <h1 id="auth-title" class="acct-title">Your MedIndex account</h1>
+      <h1 id="auth-title" class="acct-title" data-i18n="account.auth.title">Your MedIndex account</h1>
       <p class="acct-muted acct-lead" id="acct-next-note" hidden></p>
 
-      <div class="acct-tabs" role="tablist" aria-label="Account">
-        <button type="button" role="tab" class="acct-tab" id="tab-login" aria-controls="panel-login" aria-selected="true">Sign in</button>
-        <button type="button" role="tab" class="acct-tab" id="tab-signup" aria-controls="panel-signup" aria-selected="false" tabindex="-1">Create account</button>
+      <div class="acct-tabs" role="tablist" aria-label="Account" data-i18n-attr="aria-label:account.tabs.aria">
+        <button type="button" role="tab" class="acct-tab" id="tab-login" aria-controls="panel-login" aria-selected="true" data-i18n="account.tab.login">Sign in</button>
+        <button type="button" role="tab" class="acct-tab" id="tab-signup" aria-controls="panel-signup" aria-selected="false" tabindex="-1" data-i18n="account.tab.signup">Create account</button>
       </div>
 
       <!-- Sign in -->
@@ -48,13 +49,13 @@
         <form id="login-form" class="acct-form" novalidate>
           <p class="acct-form-error" id="login-error" role="alert" aria-live="assertive" hidden></p>
           <div class="acct-field">
-            <label for="login-identifier">Email, phone or username</label>
+            <label for="login-identifier" data-i18n="account.login.identifier">Email, phone or username</label>
             <input type="text" id="login-identifier" name="identifier" autocomplete="username" autocapitalize="none" spellcheck="false" required
                    aria-describedby="login-identifier-error">
             <p class="acct-field-error" id="login-identifier-error" aria-live="polite"></p>
           </div>
           <div class="acct-field">
-            <label for="login-password">Password</label>
+            <label for="login-password" data-i18n="account.password">Password</label>
             <div class="acct-pass">
               <input type="password" id="login-password" name="password" autocomplete="current-password" required
                      aria-describedby="login-password-error">
@@ -62,11 +63,11 @@
             </div>
             <p class="acct-field-error" id="login-password-error" aria-live="polite"></p>
           </div>
-          <button type="submit" class="acct-btn acct-btn-primary acct-btn-block" id="login-submit">Sign in</button>
+          <button type="submit" class="acct-btn acct-btn-primary acct-btn-block" id="login-submit" data-i18n="account.login.submit">Sign in</button>
         </form>
-        <aside class="acct-demo" aria-label="Demo account">
-          <p class="acct-demo-text"><strong>Demo account</strong> <code>admin</code> / <code>adminboss</code></p>
-          <button type="button" class="acct-btn acct-btn-ghost acct-btn-small" id="demo-fill">Fill in</button>
+        <aside class="acct-demo" aria-label="Demo account" data-i18n-attr="aria-label:account.demo.aria">
+          <p class="acct-demo-text"><strong data-i18n="account.demo.title">Demo account</strong> <code>admin</code> / <code>adminboss</code></p>
+          <button type="button" class="acct-btn acct-btn-ghost acct-btn-small" id="demo-fill" data-i18n="account.demo.fill">Fill in</button>
         </aside>
       </div>
 
@@ -75,14 +76,14 @@
         <form id="signup-form" class="acct-form" novalidate>
           <p class="acct-form-error" id="signup-error" role="alert" aria-live="assertive" hidden></p>
           <div class="acct-field">
-            <label for="signup-identifier">Email or phone number</label>
+            <label for="signup-identifier" data-i18n="account.signup.identifier">Email or phone number</label>
             <input type="text" id="signup-identifier" name="identifier" autocomplete="username" autocapitalize="none" spellcheck="false" required
                    inputmode="email" aria-describedby="signup-identifier-help signup-identifier-error">
-            <p class="acct-help" id="signup-identifier-help">For example name@example.com or 0722 123 456 / +40 722 123 456.</p>
+            <p class="acct-help" id="signup-identifier-help" data-i18n="account.signup.identifierHelp">For example name@example.com or 0722 123 456 / +40 722 123 456.</p>
             <p class="acct-field-error" id="signup-identifier-error" aria-live="polite"></p>
           </div>
           <div class="acct-field">
-            <label for="signup-password">Password</label>
+            <label for="signup-password" data-i18n="account.password">Password</label>
             <div class="acct-pass">
               <input type="password" id="signup-password" name="password" autocomplete="new-password" required minlength="8"
                      aria-describedby="signup-password-hint signup-password-error">
@@ -94,13 +95,13 @@
             <p class="acct-field-error" id="signup-password-error" aria-live="polite"></p>
           </div>
           <div class="acct-field">
-            <label for="signup-name">Display name <span class="acct-optional">(optional)</span></label>
+            <label for="signup-name"><span data-i18n="account.signup.displayName">Display name</span> <span class="acct-optional" data-i18n="account.optional">(optional)</span></label>
             <input type="text" id="signup-name" name="displayName" autocomplete="nickname" maxlength="60"
                    aria-describedby="signup-name-error">
             <p class="acct-field-error" id="signup-name-error" aria-live="polite"></p>
           </div>
-          <button type="submit" class="acct-btn acct-btn-primary acct-btn-block" id="signup-submit">Create account</button>
-          <p class="acct-help acct-center">Your password is sent only to the MedIndex server over this connection; it is never stored in your browser.</p>
+          <button type="submit" class="acct-btn acct-btn-primary acct-btn-block" id="signup-submit" data-i18n="account.signup.submit">Create account</button>
+          <p class="acct-help acct-center" data-i18n="account.signup.privacy">Your password is sent only to the MedIndex server over this connection; it is never stored in your browser.</p>
         </form>
       </div>
     </section>
@@ -117,7 +118,7 @@
       </div>
       <dl class="acct-facts">
         <div>
-          <dt>Plan</dt>
+          <dt data-i18n="account.plan">Plan</dt>
           <dd><span class="acct-plan" id="profile-plan"></span></dd>
         </div>
         <div id="profile-renews-row" hidden>
@@ -125,7 +126,7 @@
           <dd id="profile-renews"></dd>
         </div>
       </dl>
-      <nav class="acct-links" aria-label="Account shortcuts">
+      <nav class="acct-links" aria-label="Account shortcuts" data-i18n-attr="aria-label:account.shortcuts.aria">
         <a class="acct-link-card" id="link-premium" href="premium.html">
           <span class="acct-link-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="22" height="22" focusable="false"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z" fill="currentColor"/></svg>
@@ -137,38 +138,41 @@
           <span class="acct-link-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="22" height="22" focusable="false"><path d="M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6.2 9.5 4.3 4.3 0 0 0 7 18z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 15v-4m-2 2l2-2 2 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
-          <span><span class="acct-link-title">Medical Cloud</span>
+          <span><span class="acct-link-title" data-i18n="account.link.cloud">Medical Cloud</span>
           <span class="acct-link-sub" id="link-cloud-sub">Premium feature</span></span>
         </a>
       </nav>
-      <button type="button" class="acct-btn acct-btn-ghost acct-btn-block" id="logout-btn">Sign out</button>
+      <button type="button" class="acct-btn acct-btn-ghost acct-btn-block" id="logout-btn" data-i18n="account.logout">Sign out</button>
     </section>
   </main>
 
   <footer class="mx-footer">
     <div class="mx-wrap mx-footer-inner">
-      <a class="mx-brand" href="index.html" aria-label="MedIndex home">
+      <a class="mx-brand" href="index.html" aria-label="MedIndex home" data-i18n-attr="aria-label:account.footer.homeAria">
         <svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true" focusable="false"><rect x="1" y="1" width="38" height="38" rx="10" fill="currentColor"/><path d="M16 9h8v7h7v8h-7v7h-8v-7H9v-8h7z" fill="#0b1630"/></svg>
         <span>MedIndex</span>
       </a>
-      <nav aria-label="Footer">
+      <nav aria-label="Footer" data-i18n-attr="aria-label:footer.nav">
         <ul class="mx-footer-links">
-          <li><a href="doctors.html">Find Doctors</a></li>
-          <li><a href="doctors.html#assistant">AI Assistant</a></li>
-          <li><a href="premium.html">Premium</a></li>
-          <li><a href="account.html">Account</a></li>
+          <li><a href="doctors.html" data-i18n="account.footer.doctors">Find Doctors</a></li>
+          <li><a href="doctors.html#assistant" data-i18n="account.footer.assistant">AI Assistant</a></li>
+          <li><a href="premium.html" data-i18n="account.footer.premium">Premium</a></li>
+          <li><a href="account.html" data-i18n="account.footer.account">Account</a></li>
         </ul>
       </nav>
       <div class="mx-footer-legal">
-        <p><strong>About the data.</strong> Data collected from public pages of each network. Prices may change; confirm with the clinic before booking.</p>
-        <p><strong>About the AI.</strong> MedIndex Assistant gives general health information, not a diagnosis, and its advice may be wrong. It never replaces a doctor. In an emergency, call 112.</p>
+        <p><strong data-i18n="footer.dataTitle">About the data.</strong> <span data-i18n="footer.dataText">Data collected from public pages of each network. Prices may change; confirm with the clinic before booking.</span></p>
+        <p><strong data-i18n="footer.aiTitle">About the AI.</strong> <span data-i18n="footer.aiText">MedIndex Assistant gives general health information, not a diagnosis, and its advice may be wrong. It never replaces a doctor. In an emergency, call 112.</span></p>
       </div>
     </div>
   </footer>
 
-
+  <script src="js/i18n.js"></script>
+  <script src="js/i18n-shell.js"></script>
+  <script src="js/i18n-account.js"></script>
   <script src="js/api.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/account.js"></script>
+  <script src="js/transitions.js" defer></script>
 </body>
 </html>

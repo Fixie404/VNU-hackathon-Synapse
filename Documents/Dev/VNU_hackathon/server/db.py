@@ -91,6 +91,16 @@ MIGRATIONS = [
     );
     CREATE INDEX chat_messages_chat ON chat_messages(chat_id, id);
     """,
+    # 2: Premium favourites (doctor ids only; the doctor data stays in data/doctors.js)
+    """
+    CREATE TABLE favorites (
+        user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        doctor_id  INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, doctor_id)
+    );
+    CREATE INDEX favorites_user ON favorites(user_id, created_at);
+    """,
 ]
 
 

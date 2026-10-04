@@ -24,12 +24,15 @@
  *
  *   window.SPECIALTY_FALLBACKS = { "Wanted specialty": ["closest", "next", ...] }
  *     - Used when a specialty has no doctors in the current list. The engine walks the
- *       chain, then tries "Family Medicine", then "Internal Medicine".
+ *       chain, then tries "General Practitioner / Family Doctor", then "Internal Medicine".
+ *       (An older dataset label "Family Medicine" is accepted as an alias by the engine.)
  *
  *   window.CHILD_KEYWORDS / window.ADULT_KEYWORDS – words used to infer who it is for.
  */
 (function () {
   "use strict";
+
+  var GP = "General Practitioner / Family Doctor";
 
   var REASONS = {
     "Dermatology": {
@@ -104,9 +107,9 @@
       en: "Bone and joint problems in children are treated by a pediatric orthopedist.",
       ro: "Problemele oaselor și articulațiilor la copii sunt tratate de un medic ortoped pediatru."
     },
-    "Family Medicine": {
-      en: "A family doctor is a good first step for general symptoms and can refer you to a specialist.",
-      ro: "Medicul de familie este un prim pas bun pentru simptome generale și vă poate trimite la un specialist."
+    "General Practitioner / Family Doctor": {
+      en: "A family doctor (general practitioner) is the usual first contact: they look at general symptoms, do routine check-ups, handle prescriptions and certificates, and refer you to a specialist when needed.",
+      ro: "Medicul de familie (medicul generalist) este de obicei primul contact: evaluează simptomele generale, face controale de rutină, se ocupă de rețete și adeverințe și vă trimite la un specialist când este nevoie."
     },
     "Internal Medicine": {
       en: "General, whole-body symptoms are assessed by an internal medicine doctor.",
@@ -285,19 +288,37 @@
       "probleme cu somnul", "insomnia", "cant sleep", "cannot sleep", "trouble sleeping", "sleep problems", "can not sleep"]),
     R("Psychology", 2, ["stres", "stresat", "stresată", "epuizat psihic", "stress", "stressed", "burnout", "burned out"]),
 
-    // ---- General: Family / Internal Medicine ------------------------------
-    R("Family Medicine", 3, ["febră", "febra", "febril", "temperatură", "temperatura mare", "frisoane", "răceală", "răcit",
+    // ---- General: GP (General Practitioner / Family Doctor) / Internal Medicine ----
+    R(GP, 3, ["febră", "febra", "febril", "temperatură", "temperatura mare", "frisoane", "răceală", "răcit",
       "răcită", "gripă", "gripa", "fever", "high temperature", "temperature", "chills", "a cold", "flu"]),
     R("Internal Medicine", 2, ["febră", "febra", "temperatură", "frisoane", "fever", "high temperature", "chills"]),
-    R("Family Medicine", 2, ["tuse", "tusea", "tușesc", "cough", "coughing", "durere în gât", "sore throat"]),
-    R("Family Medicine", 2, ["oboseală", "obosit", "obosită", "fără energie", "slăbiciune", "sleit", "tired", "fatigue",
+    R(GP, 2, ["tuse", "tusea", "tușesc", "cough", "coughing", "durere în gât", "sore throat"]),
+    R(GP, 2, ["oboseală", "obosit", "obosită", "fără energie", "slăbiciune", "sleit", "tired", "fatigue",
       "exhausted", "no energy", "weakness"]),
     R("Internal Medicine", 2, ["oboseală", "obosit", "obosită", "slăbiciune", "fatigue", "tired", "exhausted", "weakness",
       "am slăbit fără motiv", "pierdut în greutate", "weight loss", "losing weight"]),
-    R("Family Medicine", 2, ["control", "analize", "analize de sânge", "check up", "checkup", "blood tests", "blood test",
-      "trimitere", "referral", "vaccin", "vaccine", "vaccination"]),
-    R("Family Medicine", 1, ["durere de cap", "dureri de cap", "doare capul", "headache", "amețeli", "dizzy", "dizziness"]),
-    R("Family Medicine", 1, ["insomnie", "anxietate", "stres", "insomnia", "anxiety", "stress"]),
+    R(GP, 2, ["control", "analize", "analize de sânge", "check up", "checkup", "blood tests", "blood test"]),
+    // First-contact needs that a family doctor handles (not symptoms): check-ups, prescriptions,
+    // vaccinations, certificates, referrals. "specific" -> Medium on its own.
+    R(GP, 3, ["control general", "control de rutină", "control medical", "control periodic", "control anual",
+      "analize de rutină", "analize generale", "analize periodice", "general check up", "general checkup", "routine check up",
+      "routine checkup", "annual check up", "annual checkup", "medical check up", "health check", "routine blood tests",
+      "routine tests", "rețetă", "rețeta", "rețete", "prescripție", "reînnoire rețetă", "rețetă compensată", "prescription",
+      "prescriptions", "renew my prescription", "repeat prescription", "vaccin", "vaccinare", "vaccinul", "vaccine",
+      "vaccination", "vaccinated", "adeverință medicală", "adeverință", "adeverinta", "certificat medical", "aviz medical",
+      "fișă medicală", "concediu medical", "medical certificate", "sick note", "doctors note", "fit note",
+      "bilet de trimitere", "trimitere", "referral letter", "referral"]),
+    // General malaise without a body part: a family doctor is the first contact (stays Low).
+    R(GP, 2, ["mă simt rău", "nu mă simt bine", "stare generală proastă", "stare de rău", "stare de slăbiciune",
+      "rău general", "i feel sick", "i feel unwell", "i feel ill", "feeling unwell", "dont feel well", "not feeling well",
+      "general malaise", "malaise", "under the weather"]),
+    // The family doctor named directly: High-ish on its own (placed after the symptom rules, so a
+    // specialty symptom of the same weight still ranks first).
+    R(GP, 4, ["medic de familie", "medicul de familie", "medicului de familie", "doctor de familie", "doctorul de familie",
+      "medicină de familie", "medic generalist", "medicul generalist", "family doctor", "family doctors", "family physician",
+      "family medicine", "general practitioner", "general practice", "gp", "my gp", "primary care", "primary care doctor"]),
+    R(GP, 1, ["durere de cap", "dureri de cap", "doare capul", "headache", "amețeli", "dizzy", "dizziness"]),
+    R(GP, 1, ["insomnie", "anxietate", "stres", "insomnia", "anxiety", "stress"]),
 
     // ---- Remapped specialties not usually in the list ---------------------
     R("Allergology", 3, ["alergie", "alergii", "alergic", "alergică", "allergy", "allergies", "allergic", "hay fever"]),
@@ -574,9 +595,10 @@
     "Endocrinology|tiroidă": "strong", "Endocrinology|sete mare": "general", "Endocrinology|transpir excesiv": "moderate",
     "Ophthalmology|ochi": "specific", "Ophthalmology|vedere încețoșată": "strong", "Ophthalmology|mă ustură ochii": "specific",
     "Psychiatry|anxietate": "specific", "Psychiatry|insomnie": "moderate", "Psychology|stres": "general",
-    "Family Medicine|febră": "general", "Internal Medicine|febră": "general", "Family Medicine|tuse": "general",
-    "Family Medicine|oboseală": "general", "Internal Medicine|oboseală": "general", "Family Medicine|control": "moderate",
-    "Family Medicine|durere de cap": "general", "Family Medicine|insomnie": "general",
+    "General Practitioner / Family Doctor|febră": "general", "Internal Medicine|febră": "general", "General Practitioner / Family Doctor|tuse": "general",
+    "General Practitioner / Family Doctor|oboseală": "general", "Internal Medicine|oboseală": "general", "General Practitioner / Family Doctor|control": "moderate",
+    "General Practitioner / Family Doctor|control general": "specific", "General Practitioner / Family Doctor|mă simt rău": "general", "General Practitioner / Family Doctor|medic de familie": "strong",
+    "General Practitioner / Family Doctor|durere de cap": "general", "General Practitioner / Family Doctor|insomnie": "general",
     "Allergology|alergie": "moderate", "Dentistry|dinte": "specific"
   };
   window.SYMPTOM_RULES.forEach(function (rule) {
@@ -585,24 +607,25 @@
   });
 
   window.SPECIALTY_FALLBACKS = {
-    "Psychology": ["Psychiatry", "Family Medicine"],
-    "Psychiatry": ["Family Medicine"],
-    "Pulmonology": ["Internal Medicine", "Family Medicine"],
-    "Allergology": ["Internal Medicine", "Family Medicine"],
+    "Psychology": ["Psychiatry", "General Practitioner / Family Doctor"],
+    "Psychiatry": ["General Practitioner / Family Doctor"],
+    "Pulmonology": ["Internal Medicine", "General Practitioner / Family Doctor"],
+    "Allergology": ["Internal Medicine", "General Practitioner / Family Doctor"],
     "Nephrology": ["Urology", "Internal Medicine"],
-    "Dentistry": ["Family Medicine"],
+    "Dentistry": ["General Practitioner / Family Doctor"],
     "Pediatric Orthopedics": ["Orthopedics", "Pediatrics"],
     "Sports Medicine": ["Orthopedics"],
     "Rheumatology": ["Orthopedics", "Internal Medicine"],
-    "Pediatrics": ["Family Medicine"],
+    "Pediatrics": ["General Practitioner / Family Doctor"],
     "Endocrinology": ["Internal Medicine"],
     "Gastroenterology": ["Internal Medicine"],
     "Cardiology": ["Internal Medicine"],
     "Neurology": ["Internal Medicine"],
     "General Surgery": ["Gastroenterology"],
-    "Family Medicine": ["Internal Medicine"],
-    "Internal Medicine": ["Family Medicine"]
-    // Anything else (and the end of every chain): "Family Medicine", then "Internal Medicine".
+    "General Practitioner / Family Doctor": ["Internal Medicine"],
+    "Internal Medicine": ["General Practitioner / Family Doctor"]
+    // Anything else (and the end of every chain): "General Practitioner / Family Doctor", then "Internal Medicine".
+    // The older dataset label "Family Medicine" is treated by the engine as an alias of the GP label.
   };
 
   window.SPECIALTY_REASONS = REASONS;

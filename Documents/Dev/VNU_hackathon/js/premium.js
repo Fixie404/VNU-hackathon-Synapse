@@ -21,8 +21,14 @@
     return n;
   }
   function api() { return window.MedIndexAPI || null; }
-  function money(v) { return "$" + v.toFixed(2); }
-  function planLabel(p) { return p === "yearly" ? "Premium · Yearly" : "Premium · Monthly"; }
+  var I = window.MedIndexI18n || null;
+  function T(k, v) { return I ? I.t(k, v) : k; }
+  function money(v) {
+    var amt = I ? I.formatNumber(v, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(2);
+    return T("premium.money", { amount: amt });
+  }
+  function pct() { return I ? I.formatNumber(SAVE_PCT) : String(SAVE_PCT); }
+  function planLabel(p) { return T(p === "yearly" ? "co.planYearly" : "co.planMonthly"); }
 
   function toDate(v) {
     if (v == null || v === "") return null;
@@ -33,6 +39,7 @@
   function fmtDate(v) {
     var d = toDate(v);
     if (!d) return "—";
+    if (I) return I.formatDate(d);
     try { return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }); }
     catch (e) { return d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear(); }
   }
@@ -50,12 +57,12 @@
     $("bill-yearly").setAttribute("aria-pressed", p === "yearly" ? "true" : "false");
     if (p === "yearly") {
       $("prem-amount").textContent = money(PRICES.yearly);
-      $("prem-per").textContent = "/ year";
-      $("prem-alt").textContent = "That's " + money(PRICES.yearly / 12) + " a month — save " + SAVE_PCT + "% vs monthly (" + money(PRICES.monthly * 12) + " a year).";
+      $("prem-per").textContent = T("plans.perYear");
+      $("prem-alt").textContent = T("premium.alt.yearly", { perMonth: money(PRICES.yearly / 12), pct: pct(), fullYear: money(PRICES.monthly * 12) });
     } else {
       $("prem-amount").textContent = money(PRICES.monthly);
-      $("prem-per").textContent = "/ month";
-      $("prem-alt").textContent = "Or " + money(PRICES.yearly) + " a year and save " + SAVE_PCT + "%.";
+      $("prem-per").textContent = T("plans.perMonth");
+      $("prem-alt").textContent = T("premium.alt.monthly", { yearly: money(PRICES.yearly), pct: pct() });
     }
     renderCta();
   }
@@ -76,7 +83,7 @@
     var actions = el("div", "mx-status-actions");
 
     if (!auth.known) {
-      h.textContent = "Checking your account…";
+      h.textContent = T("premium.status.checking");
       box.appendChild(h);
       return;
     }
@@ -84,40 +91,40 @@
     if (isPremium()) {
       var pr = auth.user.premium;
       box.className = "mx-status mx-status-premium";
-      h.textContent = "You're on Premium";
+      h.textContent = T("premium.status.onPremium");
       box.appendChild(h);
       var dl = el("dl");
-      dl.appendChild(el("dt", null, "Plan"));
-      dl.appendChild(el("dd", null, pr.plan === "yearly" ? "Yearly (" + money(PRICES.yearly) + " / year)" : pr.plan === "monthly" ? "Monthly (" + money(PRICES.monthly) + " / month)" : "Premium"));
-      if (pr.since) { dl.appendChild(el("dt", null, "Member since")); dl.appendChild(el("dd", null, fmtDate(pr.since))); }
-      dl.appendChild(el("dt", null, "Renews on"));
+      dl.appendChild(el("dt", null, T("premium.status.plan")));
+      dl.appendChild(el("dd", null, pr.plan === "yearly" ? T("premium.status.planYearly", { price: money(PRICES.yearly) }) : pr.plan === "monthly" ? T("premium.status.planMonthly", { price: money(PRICES.monthly) }) : "Premium"));
+      if (pr.since) { dl.appendChild(el("dt", null, T("premium.status.since"))); dl.appendChild(el("dd", null, fmtDate(pr.since))); }
+      dl.appendChild(el("dt", null, T("premium.status.renewsOn")));
       dl.appendChild(el("dd", null, fmtDate(pr.renewsAt)));
       box.appendChild(dl);
-      actions.appendChild(link("cloud.html", "mx-btn mx-btn-primary", "Open Medical Cloud"));
-      var cancel = el("button", "mx-btn mx-btn-danger", "Cancel Premium (demo)");
+      actions.appendChild(link("cloud.html", "mx-btn mx-btn-primary", T("premium.openCloud")));
+      var cancel = el("button", "mx-btn mx-btn-danger", T("premium.status.cancel"));
       cancel.type = "button";
       cancel.id = "pr-cancel";
       cancel.addEventListener("click", function () { renderCancelConfirm(); });
       actions.appendChild(cancel);
       box.appendChild(actions);
     } else if (auth.user) {
-      h.textContent = "Hi " + String(auth.user.displayName || "there") + ", you're on the free Regular plan";
+      h.textContent = auth.user.displayName ? T("premium.status.hiRegular", { name: String(auth.user.displayName) }) : T("premium.status.hiRegularAnon");
       box.appendChild(h);
-      box.appendChild(el("p", null, "Upgrade any time to read every review and get your 5 GB Secure Medical Cloud (demo: only file details are saved, not the files themselves)."));
+      box.appendChild(el("p", null, T("premium.status.upgradeText")));
     } else if (auth.offline) {
-      h.textContent = "Offline mode";
+      h.textContent = T("premium.status.offline");
       box.appendChild(h);
       var p = el("p");
-      p.appendChild(document.createTextNode("Sign-in and checkout need the local server. Run "));
+      p.appendChild(document.createTextNode(T("premium.status.offlineBefore")));
       p.appendChild(el("code", null, "python3 server/proxy.py"));
-      p.appendChild(document.createTextNode(" and open http://127.0.0.1:8000/premium.html."));
+      p.appendChild(document.createTextNode(T("premium.status.offlineAfter")));
       box.appendChild(p);
     } else {
-      h.textContent = "Sign in to get Premium";
+      h.textContent = T("premium.status.signInTitle");
       box.appendChild(h);
-      box.appendChild(el("p", null, "Premium is linked to your MedIndex account. Sign in or create a free account, then come back here to upgrade."));
-      actions.appendChild(link("account.html?next=premium.html", "mx-btn mx-btn-primary", "Sign in"));
-      actions.appendChild(link("account.html?next=premium.html", "mx-btn mx-btn-secondary", "Create an account"));
+      box.appendChild(el("p", null, T("premium.status.signInText")));
+      actions.appendChild(link("account.html?next=premium.html", "mx-btn mx-btn-primary", T("premium.status.signIn")));
+      actions.appendChild(link("account.html?next=premium.html", "mx-btn mx-btn-secondary", T("premium.status.create")));
       box.appendChild(actions);
     }
 
@@ -131,13 +138,13 @@
     var wrap = el("div", "mx-status-actions");
     wrap.id = "pr-cancel-confirm";
     wrap.setAttribute("role", "group");
-    wrap.setAttribute("aria-label", "Confirm cancellation");
-    var q = el("p", null, "Cancel Premium now? Your account goes back to the free Regular plan.");
+    wrap.setAttribute("aria-label", T("premium.cancel.group"));
+    var q = el("p", null, T("premium.cancel.question"));
     q.style.flexBasis = "100%";
     wrap.appendChild(q);
-    var yes = el("button", "mx-btn mx-btn-danger", "Yes, cancel Premium");
+    var yes = el("button", "mx-btn mx-btn-danger", T("premium.cancel.yes"));
     yes.type = "button";
-    var no = el("button", "mx-btn mx-btn-secondary", "Keep Premium");
+    var no = el("button", "mx-btn mx-btn-secondary", T("premium.cancel.no"));
     no.type = "button";
     wrap.appendChild(yes);
     wrap.appendChild(no);
@@ -146,16 +153,16 @@
     no.addEventListener("click", function () { box.removeChild(wrap); var c = $("pr-cancel"); if (c) c.focus(); });
     yes.addEventListener("click", function () {
       var A = api();
-      if (!A || !A.premium || typeof A.premium.cancel !== "function") { renderStatus("Cancelling needs the local server.", "error"); return; }
+      if (!A || !A.premium || typeof A.premium.cancel !== "function") { renderStatus(T("premium.cancel.needsServer"), "error"); return; }
       yes.disabled = true; no.disabled = true;
-      yes.textContent = "Cancelling…";
+      yes.textContent = T("premium.cancel.cancelling");
       A.premium.cancel(function (err) {
         if (err) {
-          renderStatus(err.status === 401 ? "Your session has expired. Please sign in again." : "Could not cancel: " + String(err.error || "unknown error") + ".", "error");
+          renderStatus(err.status === 401 ? T("premium.sessionExpired") : T("premium.cancel.failed", { error: String(err.error || T("premium.unknownError")) }), "error");
           if (err.status === 401) refreshNav();
           return;
         }
-        refreshNav("Premium cancelled. You're back on the free Regular plan.");
+        refreshNav(T("premium.cancel.done"));
       });
     });
   }
@@ -165,18 +172,18 @@
     var reg = $("reg-cta");
     var btn;
     if (isPremium()) {
-      btn = el("a", "mx-btn mx-btn-secondary", "Open Medical Cloud");
+      btn = el("a", "mx-btn mx-btn-secondary", T("premium.openCloud"));
       btn.href = "cloud.html";
-      reg.textContent = "Start searching";
+      reg.textContent = T("plans.startSearching");
     } else if (auth.user) {
-      btn = el("button", "mx-btn mx-btn-primary", "Upgrade to Premium · " + money(PRICES[plan]) + (plan === "yearly" ? "/yr" : "/mo"));
+      btn = el("button", "mx-btn mx-btn-primary", T("premium.cta.upgrade", { price: money(PRICES[plan]) + T(plan === "yearly" ? "premium.cta.perYr" : "premium.cta.perMo") }));
       btn.type = "button";
       btn.addEventListener("click", function () { openCheckout(btn); });
-      reg.textContent = "Start searching";
+      reg.textContent = T("plans.startSearching");
     } else {
-      btn = el("a", "mx-btn mx-btn-primary", auth.offline ? "Get Premium (needs the local server)" : "Sign in to get Premium");
+      btn = el("a", "mx-btn mx-btn-primary", T(auth.offline ? "premium.cta.offline" : "premium.cta.signIn"));
       btn.href = "account.html?next=premium.html";
-      reg.textContent = "Start searching";
+      reg.textContent = T("plans.startSearching");
     }
     btn.id = "prem-cta";
     $("reg-current").hidden = !(auth.user && !isPremium());
@@ -210,7 +217,7 @@
       function (n) { return n.offsetParent !== null; });
   }
 
-  var STEP_NAMES = ["", "Step 1 of 3: plan summary", "Step 2 of 3: card details", "Step 3 of 3: processing", "Payment complete"];
+  var STEP_KEYS = ["", "co.step1", "co.step2", "co.step3", "co.step4"];
 
   function showStep(n) {
     step = n;
@@ -219,22 +226,30 @@
       li.classList.toggle("is-done", idx < Math.min(n, 3));
     });
     $("co-close").disabled = n === 3;
-    $("co-stepname").textContent = STEP_NAMES[n];
-    $("co-title").textContent = n === 2 ? "Card details" : n === 4 ? "Welcome to Premium" : "Upgrade to Premium";
+    labelStep(n);
     if (n === 1) $("co-next").focus();
     else if (n === 2) $("cc-name").focus();
     else if (n === 3) $("co-title").focus();
     else if (n === 4) $("co-title").focus();
   }
 
+  function labelStep(n) {
+    $("co-stepname").textContent = T(STEP_KEYS[n]);
+    $("co-title").textContent = T(n === 2 ? "co.titleCard" : n === 4 ? "co.titleWelcome" : "co.titleUpgrade");
+  }
+
+  function fillSummary() {
+    $("co-plan").textContent = planLabel(plan);
+    $("co-billing").textContent = plan === "yearly" ? T("co.billingYearly", { price: money(PRICES.yearly), pct: pct() }) : T("co.billingMonthly", { price: money(PRICES.monthly) });
+    $("co-renews").textContent = renewPreview(plan);
+    $("co-total").textContent = T("co.demoSuffix", { price: money(PRICES[plan]) });
+    $("co-pay").textContent = T("co.pay", { price: money(PRICES[plan]) });
+  }
+
   function openCheckout(trigger) {
     if (!auth.user) { location.href = "account.html?next=premium.html"; return; }
     lastFocus = trigger || document.activeElement;
-    $("co-plan").textContent = planLabel(plan);
-    $("co-billing").textContent = plan === "yearly" ? money(PRICES.yearly) + " / year (save " + SAVE_PCT + "%)" : money(PRICES.monthly) + " / month";
-    $("co-renews").textContent = renewPreview(plan);
-    $("co-total").textContent = money(PRICES[plan]) + " (demo)";
-    $("co-pay").textContent = "Pay " + money(PRICES[plan]) + " (demo)";
+    fillSummary();
     clearForm(true);
     $("co").hidden = false;
     document.documentElement.classList.add("mx-modal-open");
@@ -295,10 +310,10 @@
 
   function hintErrors(card) {
     var errs = {};
-    if (!card.name.trim()) errs.name = "Enter the name on the card.";
-    if (card.number.length < 12) errs.number = "Enter the full card number (try 4242 4242 4242 4242).";
-    if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(card.exp)) errs.exp = "Use the format MM/YY, for example 12/29.";
-    if (!/^\d{3,4}$/.test(card.cvc)) errs.cvc = "Enter 3 or 4 digits.";
+    if (!card.name.trim()) errs.name = T("co.err.name");
+    if (card.number.length < 12) errs.number = T("co.err.number");
+    if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(card.exp)) errs.exp = T("co.err.exp");
+    if (!/^\d{3,4}$/.test(card.cvc)) errs.cvc = T("co.err.cvc");
     return errs;
   }
 
@@ -328,7 +343,7 @@
     if (!A || !A.premium || typeof A.premium.checkout !== "function") {
       card = null;
       clearForm(false);
-      $("co-err").textContent = "Checkout needs the local server (python3 server/proxy.py).";
+      $("co-err").textContent = T("co.err.needsServer");
       $("co-err").hidden = false;
       return;
     }
@@ -347,28 +362,50 @@
         if (err) {
           if (err.status === 401) {
             closeCheckout();
-            renderStatus("Your session has expired. Please sign in again.", "error");
+            renderStatus(T("premium.sessionExpired"), "error");
             refreshNav();
             return;
           }
           showStep(2);
           var f = serverField(err.field);
-          var msg = String(err.error || "The payment could not be completed.");
-          if (err.status === 0) msg = "Can't reach the server. Is python3 server/proxy.py running?";
+          var msg = String(err.error || T("co.err.generic"));
+          if (err.status === 0) msg = T("co.err.noServer");
           if (!/[.!?]$/.test(msg)) msg += ".";
-          $("co-err").textContent = msg + " Card number and CVC were cleared for your safety.";
+          $("co-err").textContent = T("co.err.cleared", { msg: msg });
           $("co-err").hidden = false;
           if (f) { setFieldError(f, msg); fieldInput(f).focus(); }
           return;
         }
         clearForm(true);
         var pr = data && data.premium;
-        $("co-success-text").textContent = "Your " + (chosen === "yearly" ? "yearly" : "monthly") + " Premium plan is active" +
-          (pr && pr.renewsAt ? " until " + fmtDate(pr.renewsAt) : "") + ". You can now read every review and use your 5 GB Secure Medical Cloud (demo: only file details are saved, not the files themselves).";
+        successInfo = { chosen: chosen, renewsAt: pr && pr.renewsAt };
+        fillSuccess();
         showStep(4);
-        refreshNav("Welcome to Premium! Your plan is active.");
+        refreshNav(T("co.success.status"));
       }, wait);
     });
+  }
+
+  var successInfo = null;
+  function fillSuccess() {
+    if (!successInfo) return;
+    var base = successInfo.chosen === "yearly" ? "co.success.yearly" : "co.success.monthly";
+    $("co-success-text").textContent = successInfo.renewsAt ? T(base, { date: fmtDate(successInfo.renewsAt) }) : T(base + "NoDate");
+  }
+
+  /* Re-render every JS-set string after a language change (no reload). */
+  function onLangChange() {
+    $("save-pct").textContent = T("plans.save", { pct: pct() });
+    setPlan(plan);
+    var confirmOpen = !!$("pr-cancel-confirm");
+    renderStatus();
+    if (confirmOpen) renderCancelConfirm();
+    if (!$("co").hidden) {
+      fillSummary();
+      labelStep(step);
+      fillSuccess();
+      FIELDS.forEach(function (f) { if (fieldInput(f).getAttribute("aria-invalid")) setFieldError(f, ""); });
+    }
   }
 
   function onKeydown(e) {
@@ -385,7 +422,8 @@
   /* ---------- init ---------- */
 
   function init() {
-    $("save-pct").textContent = "Save " + SAVE_PCT + "%";
+    $("save-pct").textContent = T("plans.save", { pct: pct() });
+    if (I) I.onChange(onLangChange);
     $("bill-monthly").addEventListener("click", function () { setPlan("monthly"); });
     $("bill-yearly").addEventListener("click", function () { setPlan("yearly"); });
 

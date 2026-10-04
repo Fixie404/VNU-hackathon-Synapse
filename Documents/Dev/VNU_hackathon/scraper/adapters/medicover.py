@@ -55,6 +55,15 @@ SPECIALTIES: list[tuple[str, tuple[str, ...]]] = [
 ]
 MAX_PROFILES_PER_SPECIALTY = 10
 
+# General Practitioner / Family Doctor step: the family-medicine listing, in
+# published order, until GP_LIMIT valid records (at most GP_MAX_PROFILES tried).
+# Medicover publishes the GP consultation as "Consultatie medic generalist".
+GP_SLUG = "medicina-de-familie"            # listing URL segment
+GP_SPEC = "medicina de familie"            # profile specialty / CNAS list heading
+GP_WORDS = ("medicina de familie", "familie", "generalist", "medicina generala")
+GP_LIMIT = 2
+GP_MAX_PROFILES = 6
+
 HOSPITAL = "Medicover"
 
 
@@ -343,6 +352,33 @@ def scrape() -> list[dict]:
             except Exception as e:  # noqa: BLE001 - one bad profile must not kill the run
                 _log(f"profile {url} failed: {e!r}")
                 out.append({"name": url, "_drop_reason": "profile fetch/parse error"})
+    out.extend(_scrape_gp(clinics, cas, seen))
+    return out
+
+
+def _scrape_gp(clinics, cas, seen: set[str]) -> list[dict]:
+    out: list[dict] = []
+    try:
+        urls = _listing_profiles(GP_SLUG)
+    except Exception as e:  # noqa: BLE001
+        _log(f"GP listing failed: {e!r}")
+        return out
+    kept = tried = 0
+    for url in urls:
+        if kept >= GP_LIMIT or tried >= GP_MAX_PROFILES:
+            break
+        if url in seen:
+            continue
+        seen.add(url)
+        tried += 1
+        try:
+            rec = _parse_profile(url, GP_SPEC, GP_WORDS, clinics, cas)
+        except Exception as e:  # noqa: BLE001
+            _log(f"GP profile {url} failed: {e!r}")
+            rec = {"name": url, "_drop_reason": "profile fetch/parse error"}
+        out.append(rec)
+        if "_drop_reason" not in rec:
+            kept += 1
     return out
 
 

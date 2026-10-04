@@ -45,6 +45,12 @@ SPECIALTIES = [
     ("pediatrie", "Pediatrie"),
 ]
 
+# General Practitioner / Family Doctor step: the family-medicine listing, in
+# published order, until GP_LIMIT valid records (at most GP_MAX_PROFILES tried).
+GP_SLUG, GP_LABEL = "medicina-de-familie", "Medicina de familie"
+GP_LIMIT = 2
+GP_MAX_PROFILES = 4
+
 # Explicit clinic-level CAS/CNAS statements (generic lab-collection notes don't count).
 _CNAS_RE = re.compile(
     r"\bin contract cu (?:cas|cnas|casa)\b|\bservicii decontate (?:cas|cnas)\b")
@@ -182,6 +188,33 @@ def scrape() -> list[dict]:
                 out.append(_doctor(path, target))
             except Exception as e:  # noqa: BLE001
                 out.append({"name": path, "_drop_reason": f"profile error {type(e).__name__}"})
+    out.extend(_scrape_gp(seen))
+    return out
+
+
+def _scrape_gp(seen: set[str]) -> list[dict]:
+    out: list[dict] = []
+    target = normalize_specialty(GP_LABEL)
+    try:
+        listing = fetch(f"{BASE}/medici/{GP_SLUG}/bucuresti")
+    except Exception as e:  # noqa: BLE001
+        print(f"[medlife] GP listing failed: {e}", file=sys.stderr)
+        return out
+    kept = tried = 0
+    for path in re.findall(r'<a class="link-medic-title" href="([^"]+)"', listing):
+        if kept >= GP_LIMIT or tried >= GP_MAX_PROFILES:
+            break
+        if path in seen:
+            continue
+        seen.add(path)
+        tried += 1
+        try:
+            rec = _doctor(path, target)
+        except Exception as e:  # noqa: BLE001
+            rec = {"name": path, "_drop_reason": f"profile error {type(e).__name__}"}
+        out.append(rec)
+        if "_drop_reason" not in rec:
+            kept += 1
     return out
 
 

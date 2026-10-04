@@ -459,3 +459,51 @@ html.mx-modal-open, html.mx-modal-open body { overflow: hidden; }
   .mx-card:hover, .mx-btn-primary:hover { transform: none; }
   .mx-spinner { border-top-color: var(--mx-accent); animation: none; }
 }
+
+/* ---------- Language selector (js/nav.js) ---------- */
+
+.mx-lang { position: relative; }
+.mx-lang-btn { gap: 10px; }
+.mx-lang-btn .mx-caret { margin-left: auto; transition: transform var(--mx-t); }
+.mx-lang-btn[aria-expanded="true"] .mx-caret { transform: rotate(180deg); }
+.mx-flag {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 28px; height: 28px; border-radius: 50%; overflow: hidden;
+  background: var(--mx-surface); border: 1px solid var(--mx-border);
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.12);
+  font-size: 17px; line-height: 1; text-align: center;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}
+.mx-lang-code { display: none; font-weight: 700; letter-spacing: 0.02em; }
+.mx-lang-list {
+  list-style: none; margin: 4px 0 0; padding: 6px; border: 1px solid var(--mx-border); border-radius: 14px;
+  background: var(--mx-surface);
+}
+.mx-lang-opt {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px;
+  border-radius: 10px; cursor: pointer; font-weight: 600; color: var(--mx-text);
+}
+.mx-lang-opt:hover, .mx-lang-opt:focus { background: var(--mx-accent-soft); color: var(--mx-accent-hover); }
+.mx-lang-opt:focus-visible { outline: 3px solid var(--mx-accent); outline-offset: -3px; }
+.mx-lang-opt[aria-selected="true"] { color: var(--mx-accent); }
+.mx-lang-opt[aria-selected="true"]::after {
+  content: ""; margin-left: auto; width: 6px; height: 11px; border: solid currentColor;
+  border-width: 0 2.5px 2.5px 0; transform: rotate(45deg) translate(-2px, -2px);
+}
+
+@media (max-width: 599px) {
+  .mx-lang-btn .mx-lang-name { display: none; }
+  .mx-lang-btn .mx-lang-code { display: inline; }
+}
+@media (min-width: 900px) {
+  .mx-lang-item { margin-right: 4px; }
+  .mx-lang-btn { border: 1px solid var(--mx-border); padding: 4px 12px 4px 6px; min-height: 44px; }
+  .mx-lang-list {
+    position: absolute; left: 0; top: calc(100% + 8px); min-width: 190px; margin: 0;
+    box-shadow: var(--mx-shadow-lg); z-index: 40;
+  }
+}
+@media (min-width: 900px) and (max-width: 1099px) {
+  .mx-lang-btn .mx-lang-name { display: none; }
+  .mx-lang-btn .mx-lang-code { display: inline; }
+}

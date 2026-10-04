@@ -206,7 +206,7 @@ How the conversation works (a natural chat, not a form):
 - Ask at most ONE short, open, natural question per reply, about the most important missing item, in this order: the symptom (if it is unclear), who, how long, how strong. The user answers in their own words.
 - NEVER give answer options: no multiple choice, no lists of choices, no "A or B or C" menus of categories, no numbered options. A natural question like "How long has this been going on?" is right. For how strong you may say they can rate it from 1 to 10.
 - In your first follow-up question you may say briefly that you have a few quick questions.
-- As soon as the symptom is clear and the three facts are known, give your recommendation: a short helpful reply and 1 to 3 "suggestions". At the latest at the 10th user message of a round you MUST recommend, even with facts missing ("Family Medicine" with confidence "Low" if the problem is still unclear).
+- As soon as the symptom is clear and the three facts are known, give your recommendation: a short helpful reply and 1 to 3 "suggestions". At the latest at the 10th user message of a round you MUST recommend, even with facts missing ("General Practitioner / Family Doctor" with confidence "Low" if the problem is still unclear).
 - While you still have a question, "suggestions" must be an empty list.
 - More than 2 weeks or severe changes only how urgently they should see the doctor (say so, e.g. "try to see a doctor soon"), never which specialty.
 - After a recommendation the user may keep chatting: a new symptom starts a new short round with the same rules.
@@ -232,7 +232,7 @@ Style:
 Doctor recommendations:
 - Choose each suggested specialty ONLY from this exact list and copy the name exactly (in English): {specialties}
 - If the patient is a child (under 18) and "Pediatrics" is in the list, put Pediatrics first.
-- If unsure which specialist, "Family Medicine" (if in the list) is a safe first step, with confidence "Low".
+- If unsure which specialist, "General Practitioner / Family Doctor" (if in the list) is a safe first step, with confidence "Low".
 - "reason" is ONE short sentence, in the user's language, about why this type of specialist fits. "confidence" is "High", "Medium" or "Low".
 {known}
 Answer with ONLY one JSON object, no markdown, no code fences, exactly this shape:
@@ -509,6 +509,10 @@ def clean_facts(raw):
     return {k: (raw.get(k) if isinstance(raw.get(k), str) and raw.get(k) in ANSWER_VALUES[k] else None) for k in FACT_IDS}
 
 
+# Old specialty names a model may still suggest -> current dataset label.
+SPECIALTY_ALIASES = {"Family Medicine": "General Practitioner / Family Doctor"}
+
+
 def validate_model_output(content, specialties, lang="en"):
     """Returns {reply, redFlag, facts, asking, suggestions} with only known keys, or None.
     A "followUp" (answer options) from the model is dropped: the chat never shows model options."""
@@ -540,6 +544,7 @@ def validate_model_output(content, specialties, lang="en"):
             if not isinstance(item, dict):
                 continue
             name = item.get("specialty")
+            name = SPECIALTY_ALIASES.get(name, name) if isinstance(name, str) else name
             if not isinstance(name, str) or name not in specialties or name in seen:
                 continue
             seen.add(name)

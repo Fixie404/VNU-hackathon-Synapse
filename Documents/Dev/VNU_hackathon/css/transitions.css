@@ -1,0 +1,75 @@
+/* MedIndex – page transitions (restrained, Apple-like).
+   Owned by js/transitions.js. Every hidden/animating state here is keyed on a class that
+   only JS adds, so without JS the page renders exactly as before (no FOUC). */
+
+:root {
+  --mx-tx-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --mx-tx-in: 300ms;
+  --mx-tx-out: 150ms;
+  --mx-tx-shift: 7px;
+}
+
+/* ---------- page enter / leave (JS fallback path) ---------- */
+
+.mx-tx-in {
+  animation: mx-tx-in var(--mx-tx-in) var(--mx-tx-ease) both;
+  will-change: opacity, transform;
+}
+.mx-tx-out {
+  animation: mx-tx-out var(--mx-tx-out) cubic-bezier(0.4, 0, 1, 1) both;
+  will-change: opacity, transform;
+  pointer-events: none;
+}
+
+/* ---------- in-page view swaps (window.MedIndexTransitions) ---------- */
+
+.mx-tx-view-in {
+  animation: mx-tx-in 260ms var(--mx-tx-ease) both;
+  will-change: opacity, transform;
+}
+.mx-tx-view-out {
+  animation: mx-tx-out 140ms cubic-bezier(0.4, 0, 1, 1) both;
+  will-change: opacity, transform;
+  pointer-events: none;
+}
+
+@keyframes mx-tx-in {
+  from { opacity: 0; transform: translate3d(0, var(--mx-tx-shift), 0); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes mx-tx-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translate3d(0, -3px, 0); }
+}
+
+/* ---------- cross-document View Transitions (progressive enhancement) ---------- */
+
+@view-transition { navigation: auto; }
+
+/* The sticky header is captured on its own and swapped without animation, so it never jumps. */
+#site-header { view-transition-name: mx-header; }
+::view-transition-group(mx-header) { animation: none; }
+::view-transition-old(mx-header) { display: none; }
+::view-transition-new(mx-header) { animation: none; }
+
+::view-transition-old(root) {
+  animation: mx-tx-vt-out var(--mx-tx-out) cubic-bezier(0.4, 0, 1, 1) both;
+}
+::view-transition-new(root) {
+  animation: mx-tx-vt-in var(--mx-tx-in) var(--mx-tx-ease) both;
+}
+@keyframes mx-tx-vt-out { to { opacity: 0; } }
+@keyframes mx-tx-vt-in {
+  from { opacity: 0; transform: translateY(var(--mx-tx-shift)); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---------- reduced motion: no movement, no View Transition ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+  #site-header { view-transition-name: none; }
+  .mx-tx-in, .mx-tx-view-in { animation: mx-tx-fade 60ms linear both; }
+  .mx-tx-out, .mx-tx-view-out { animation: none; }
+}
+@keyframes mx-tx-fade { from { opacity: 0; } to { opacity: 1; } }

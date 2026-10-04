@@ -80,6 +80,7 @@ def _spec_key(text: str) -> str:
 _ENT = "ENT (Otorhinolaryngology)"
 _OBGYN = "Obstetrics & Gynecology"
 _PMR = "Physical Medicine & Rehabilitation"
+_GP = "General Practitioner / Family Doctor"
 
 # Romanian (and a few English) spellings -> English label.
 # Keys are written naturally; they are passed through _spec_key below.
@@ -160,8 +161,15 @@ _SPECIALTY_SOURCE: dict[str, str] = {
     "Psihoterapie": "Psychotherapy",
     # internal / family
     "Medicina interna": "Internal Medicine",
-    "Medicina de familie": "Family Medicine",
-    "Medicina generala": "Family Medicine",
+    "Medicina de familie": _GP,
+    "Medicina familiei": _GP,
+    "Medic de familie": _GP,
+    "Medicina generala": _GP,
+    "Medicina generala / Medicina de familie": _GP,
+    "Medic generalist": _GP,
+    "Family Medicine": _GP,
+    "General Practitioner": _GP,
+    _GP: _GP,
     "Geriatrie si gerontologie": "Geriatrics",
     "Geriatrie": "Geriatrics",
     "Medicina muncii": "Occupational Medicine",

@@ -138,6 +138,27 @@ def load_seed() -> list:
     return data
 
 
+def load_previous_ids() -> dict[tuple[str, str], int]:
+    """(hospital, profileUrl) -> id from the existing data/doctors.js, so that
+    re-running the scraper never renumbers a doctor."""
+    if not os.path.exists(OUT_PATH):
+        return {}
+    with open(OUT_PATH, encoding="utf-8") as f:
+        text = f.read()
+    marker = text.find("window.DOCTORS =")
+    meta = text.find("window.DOCTORS_META")
+    if marker < 0:
+        raise ValueError("'window.DOCTORS =' not found")
+    start = text.find("[", marker)
+    end = text.rfind("]", start, meta if meta > 0 else len(text))
+    data = json.loads(text[start:end + 1])
+    ids: dict[tuple[str, str], int] = {}
+    for r in data:
+        if isinstance(r, dict) and isinstance(r.get("id"), int) and r.get("profileUrl"):
+            ids[(r.get("hospital"), r["profileUrl"])] = r["id"]
+    return ids
+
+
 def print_summary(title: str, stats: dict[str, NetworkStats]) -> None:
     print(f"\n{title}")
     print(f"{'network':<14} {'found':>6} {'kept':>6} {'dropped':>8}")
@@ -239,13 +260,29 @@ def main(argv: list[str] | None = None) -> int:
         if seed_stats:
             print_summary("Seed (data/doctors.seed.js)", seed_stats)
 
-    # ---- assemble
+    # ---- assemble (ids are stable: reviews/favourites are keyed by doctor id)
     records = scraped + seed_kept
-    for i, rec in enumerate(records, start=1):
-        rec["id"] = i
+    try:
+        prev_ids = load_previous_ids()
+    except Exception as e:  # noqa: BLE001
+        log(f"could not read previous ids from {os.path.relpath(OUT_PATH, REPO_ROOT)}: "
+            f"{type(e).__name__}: {e}")
+        return 1
+    next_id = max(prev_ids.values(), default=0) + 1
+    for i, rec in enumerate(records):
+        key = (rec["hospital"], rec["profileUrl"])
+        if key in prev_ids:
+            rec["id"] = prev_ids[key]
+        else:
+            rec["id"] = next_id
+            next_id += 1
         rec_ordered = {k: rec[k] for k in FIELDS if k in rec}
         rec_ordered.update({k: rec[k] for k in rec if k not in rec_ordered})
-        records[i - 1] = rec_ordered
+        records[i] = rec_ordered
+    records.sort(key=lambda r: r["id"])
+    n_new = sum(1 for r in records if (r["hospital"], r["profileUrl"]) not in prev_ids)
+    n_gone = len(set(prev_ids) - {(r["hospital"], r["profileUrl"]) for r in records})
+    log(f"ids: {len(records) - n_new} reused, {n_new} new, {n_gone} previous doctor(s) not in this run")
 
     final_bad = [(r["id"], validate(r)) for r in records if validate(r)]
     if final_bad:  # should be impossible; guard anyway

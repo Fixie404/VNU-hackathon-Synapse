@@ -1,4 +1,4 @@
-"""MedIndex account API: auth, reviews, premium, cloud (metadata only) and saved chats.
+"""MedIndex account API: auth, reviews, premium, cloud (metadata only), saved chats, favourites, distinctions.
 
 Called from proxy.py for every /api/* path except /api/chat. Identity and premium status come
 ONLY from the session cookie; user ids or premium flags sent by the client are never used.
@@ -31,6 +31,8 @@ MAX_MESSAGE = 4000
 MAX_META = 4096
 MAX_TITLE = 100
 MAX_CHAT_STORAGE = 20 * 1024 * 1024  # per user, all saved chats (content + meta bytes)
+MAX_FAVORITES = 500
+DISTINCTION_THRESHOLD = 4.5
 
 PLANS = {
     "monthly": {"id": "monthly", "price": 5.99, "currency": "USD", "interval": "month", "days": 30},
@@ -313,6 +315,55 @@ def review_create(c):
         raise ApiError(409, "You already reviewed this doctor")
     return 201, {"review": {"id": cur.lastrowid, "doctorId": did, "stars": stars, "comment": comment,
                             "createdAt": iso(now), "author": author_name(u["id"], u["display_name"])}}
+
+
+# ---------------------------------------------------------------- favourites + distinctions (Premium)
+def favorite_ids(conn, uid):
+    """Newest first. Only ids are stored; ids no longer in data/doctors.js are not returned."""
+    return [r[0] for r in conn.execute("SELECT doctor_id FROM favorites WHERE user_id = ? "
+                                       "ORDER BY created_at DESC, rowid DESC", (uid,)) if r[0] in DOCTOR_IDS]
+
+
+def favorites_get(c):
+    u = c.require_premium()
+    return 200, {"doctorIds": favorite_ids(c.conn, u["id"])}
+
+
+def favorite_add(c):
+    u = c.require_premium()
+    did = parse_doctor_id(c.json().get("doctorId"))  # ASCII digits only, must exist in data/doctors.js
+    uid = u["id"]
+    c.conn.execute("BEGIN IMMEDIATE")  # cap check + insert are atomic
+    try:
+        if c.conn.execute("SELECT 1 FROM favorites WHERE user_id = ? AND doctor_id = ?", (uid, did)).fetchone():
+            status = 200
+        else:
+            if c.conn.execute("SELECT COUNT(*) FROM favorites WHERE user_id = ?", (uid,)).fetchone()[0] >= MAX_FAVORITES:
+                raise ApiError(400, "Too many favourites (max %d)" % MAX_FAVORITES, "doctorId")
+            c.conn.execute("INSERT INTO favorites (user_id, doctor_id, created_at) VALUES (?, ?, ?)",
+                           (uid, did, int(time.time())))
+            status = 201
+        c.conn.execute("COMMIT")
+    except Exception:
+        c.conn.execute("ROLLBACK")
+        raise
+    return status, {"doctorIds": favorite_ids(c.conn, uid)}
+
+
+def favorite_delete(c, did):
+    u = c.require_premium()
+    c.conn.execute("DELETE FROM favorites WHERE user_id = ? AND doctor_id = ?", (u["id"], did))
+    return 200, {"doctorIds": favorite_ids(c.conn, u["id"])}
+
+
+def distinctions(c):
+    """Live from the MedIndex reviews table only (never any published/external rating)."""
+    c.require_premium()
+    rows = c.conn.execute("SELECT doctor_id FROM reviews GROUP BY doctor_id "
+                          "HAVING COUNT(*) >= 1 AND SUM(stars) >= ? * COUNT(*) ORDER BY doctor_id",
+                          (DISTINCTION_THRESHOLD,)).fetchall()
+    return 200, {"threshold": DISTINCTION_THRESHOLD, "doctorIds": [r[0] for r in rows if r[0] in DOCTOR_IDS],
+                 "basis": "medindex_reviews"}
 
 
 # ---------------------------------------------------------------- premium
@@ -677,6 +728,10 @@ ROUTES = [
     ("GET", r"/api/premium/plans", premium_plans),
     ("POST", r"/api/premium/checkout", premium_checkout),
     ("POST", r"/api/premium/cancel", premium_cancel),
+    ("GET", r"/api/favorites", favorites_get),
+    ("POST", r"/api/favorites", favorite_add),
+    ("DELETE", r"/api/favorites/" + ID, favorite_delete),
+    ("GET", r"/api/distinctions", distinctions),
     ("GET", r"/api/cloud", cloud_get),
     ("POST", r"/api/cloud/folders", folder_create),
     ("DELETE", r"/api/cloud/folders/" + ID, folder_delete),

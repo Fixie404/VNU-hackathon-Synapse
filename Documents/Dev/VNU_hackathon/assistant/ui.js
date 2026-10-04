@@ -59,68 +59,27 @@
     starLine: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="' + STAR_PATH + '" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>'
   };
 
-  /* ---------- UI strings ---------- */
-  var STR = {
-    en: {
-      title: "MedIndex Assistant",
-      inputLabel: "Ask a health question or describe what you feel",
-      placeholder: "Ask a question or describe your symptoms",
-      send: "Send",
-      close: "Close the assistant",
-      startOver: "Start over",
-      showDoctors: "Show doctors",
-      confidence: "Confidence",
-      conf: { High: "High", Medium: "Medium", Low: "Low" },
-      intro: "This type of specialist usually handles what you describe:",
-      introMany: "These types of specialist usually handle what you describe:",
-      noMatch: "I could not match this to a type of specialist. A family doctor is a safe first step.",
-      privacy: "Nothing leaves your browser and the chat is not saved.",
-      quick: "Common topics",
-      you: "You:",
-      bot: "Assistant:",
-      thinking: "Thinking…",
-      call: "Call 112",
-      quickAnswers: "Quick answers (or type your own)",
-      error: "Something went wrong. Please try again.",
-      meterCaption: "How well your description matches this type of specialist — not a diagnosis.",
-      meterAria: "Specialist match confidence",
-      why: "Why?",
-      up: "more confident",
-      down: "less confident"
-    },
-    ro: {
-      title: "MedIndex Assistant",
-      inputLabel: "Puneți o întrebare sau descrieți ce simțiți",
-      placeholder: "De exemplu: mă doare genunchiul când merg",
-      send: "Trimite",
-      close: "Închide asistentul",
-      startOver: "Începe din nou",
-      showDoctors: "Arată medicii",
-      confidence: "Încredere",
-      conf: { High: "Ridicată", Medium: "Medie", Low: "Scăzută" },
-      intro: "De obicei, acest tip de specialist se ocupă de ce descrieți:",
-      introMany: "De obicei, aceste tipuri de specialiști se ocupă de ce descrieți:",
-      noMatch: "Nu am putut încadra problema la un tip de specialist. Medicul de familie este un prim pas sigur.",
-      privacy: "Nimic nu părăsește browserul, iar conversația nu este salvată.",
-      quick: "Subiecte frecvente",
-      you: "Dvs.:",
-      bot: "Asistent:",
-      thinking: "Se analizează…",
-      call: "Sunați la 112",
-      quickAnswers: "Răspunsuri rapide (sau scrieți răspunsul)",
-      error: "Ceva nu a mers. Încercați din nou.",
-      meterCaption: "Cât de bine se potrivește descrierea cu acest tip de specialist — nu este un diagnostic.",
-      meterAria: "Încrederea potrivirii cu specialistul",
-      why: "De ce?",
-      up: "mai sigur",
-      down: "mai puțin sigur"
-    }
-  };
-  function S(key, lang) { var t = STR[lang] || STR.en; return t[key] != null ? t[key] : STR.en[key]; }
-
-  var BEST_LABEL_ON = "Best match";
-  var BEST_LABEL_OFF = "Best match (use the assistant first)";
-  var RANK_DISCLAIMER = "Ranking is calculated from published data (rating, seniority, price, distance). It is not a medical recommendation.";
+  /* ---------- UI strings (js/i18n-directory.js via app.tr; chat.* / dir.* / reviews.* keys) ---------- */
+  function T(key, vars, lang) { return app.tr ? app.tr(key, vars, lang) : key; }
+  function TN(base, n, vars, lang) { return app.trn ? app.trn(base, n, vars, lang) : base; }
+  function S(key, lang) { return T("chat." + key, null, lang || "en"); }
+  function confText(label, lang) { var k = "chat.conf." + label, v = T(k, null, lang); return v === k ? label : v; }
+  function uiLang() { return app.uiLang ? app.uiLang() : "en"; }
+  function spec(name) { return app.specLabel ? app.specLabel(name) : name; }
+  /** Sets a UI-language text and marks it for js/i18n.js apply() on a language switch. */
+  function L(node, key) { node.textContent = T(key); node.setAttribute("data-i18n", key); return node; }
+  function LA(node, attr, key) {
+    node.setAttribute(attr, T(key));
+    var cur = (node.getAttribute("data-i18n-attr") || "").split(";").filter(function (p) { return p && p.indexOf(attr + ":") !== 0; });
+    cur.push(attr + ":" + key);
+    node.setAttribute("data-i18n-attr", cur.join(";"));
+    return node;
+  }
+  function lbutton(className, key, iconName) {
+    var b = button(className, null, iconName);
+    b.appendChild(L(el("span"), key));
+    return b;
+  }
 
   /* ---------- State (in memory only, never persisted) ---------- */
   // history: [{role: "user"|"assistant", content}] sent to the AI with each turn; memory only.
@@ -219,11 +178,12 @@
   function buildStarsLine(doctor) {
     var c = reviews.combinedRating(doctor);
     var line = el("p", "mi-stars-line");
+    var srcLabel = function (lab) { return lab === reviews.LABEL ? T("reviews.label") : lab; };
     if (c.count > 0 && typeof c.value === "number") {
       var v = formatRating(c.value);
       var stars = starRow(c.value);
       stars.setAttribute("role", "img");
-      stars.setAttribute("aria-label", v + " out of 5, " + c.count + (c.count === 1 ? " review" : " reviews"));
+      stars.setAttribute("aria-label", TN("reviews.starsAria", c.count, { v: app.uiLang && uiLang() === "ro" ? v.replace(".", ",") : v }));
       line.appendChild(stars);
       var num = el("span", "mi-stars-num", v + " (" + c.count + ")");
       num.setAttribute("aria-hidden", "true");
@@ -234,21 +194,21 @@
         if (i) src.appendChild(document.createTextNode(", "));
         var url = safeUrl(s.url);
         if (url) {
-          var a = el("a", "mi-src-link", s.label);
+          var a = el("a", "mi-src-link", srcLabel(s.label));
           a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
-          a.setAttribute("aria-label", s.label + " (opens in a new tab)");
+          a.setAttribute("aria-label", T("reviews.newTab", { label: srcLabel(s.label) }));
           src.appendChild(a);
         } else {
-          src.appendChild(el("span", null, s.label));
+          src.appendChild(el("span", null, srcLabel(s.label)));
         }
       });
       line.appendChild(src);
     } else {
       var empty = starRow(0, "is-empty");
       empty.setAttribute("role", "img");
-      empty.setAttribute("aria-label", "No ratings yet");
+      empty.setAttribute("aria-label", T("reviews.noRatings"));
       line.appendChild(empty);
-      var none = el("span", "mi-stars-none", "No ratings yet");
+      var none = el("span", "mi-stars-none", T("reviews.noRatings"));
       none.setAttribute("aria-hidden", "true");
       line.appendChild(none);
     }
@@ -256,8 +216,8 @@
   }
 
   function matchChip(result) {
-    var chip = el("span", "badge mi-match", "Match " + result.score + "/100");
-    chip.title = "How well this doctor fits your answers and the selected priority";
+    var chip = el("span", "badge mi-match", T("reviews.match", { n: result.score }));
+    chip.title = T("reviews.matchTitle");
     return chip;
   }
 
@@ -283,9 +243,10 @@
   }
   var SIGNIN_URL = "account.html?next=doctors.html";
   var SIGNUP_URL = "account.html?mode=register&next=doctors.html";
-  var LOCAL_SERVER_MSG = "Ratings and written reviews are stored by the MedIndex local server. Run python3 server/proxy.py and open http://127.0.0.1:8000 to read and write reviews.";
+  function localServerMsg() { return T("reviews.localMsg"); }
 
   function formatDay(iso) {
+    if (app.formatDate) return app.formatDate(iso);
     var d = iso ? new Date(iso) : null;
     if (!d || isNaN(d.getTime())) return "";
     var M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -317,15 +278,15 @@
       var done = el("button", "btn btn-ghost mi-rate-btn is-done");
       done.type = "button";
       done.disabled = true;
-      done.appendChild(el("span", null, "You rated this doctor"));
+      done.appendChild(el("span", null, T("reviews.rated")));
       var st = el("span", "mi-rated-stars", "★" + mine.stars);
       st.setAttribute("aria-hidden", "true");
       done.appendChild(st);
-      done.appendChild(srOnly(" (" + mine.stars + (mine.stars === 1 ? " star)" : " stars)")));
+      done.appendChild(srOnly(TN("reviews.ratedSr", mine.stars)));
       return done;
     }
-    var b = button("btn btn-ghost mi-rate-btn", "Rate this doctor");
-    b.setAttribute("aria-label", "Rate " + doctor.name);
+    var b = button("btn btn-ghost mi-rate-btn", T("reviews.rate"));
+    b.setAttribute("aria-label", T("reviews.rateAria", { name: doctor.name }));
     b.setAttribute("aria-haspopup", "dialog");
     b.addEventListener("click", function () { onRateClick(doctor, b); });
     return b;
@@ -335,17 +296,17 @@
     var s = reviews.summaryFor ? reviews.summaryFor(doctor.id) : null;
     var n = s ? s.count : 0;
     var offline = reviews.isOffline && reviews.isOffline();
-    var b = button("btn btn-ghost mi-reviews-btn", offline ? "Reviews" : "Reviews (" + n + ")");
+    var b = button("btn btn-ghost mi-reviews-btn", offline ? T("reviews.button") : T("reviews.buttonN", { n: n }));
     b.setAttribute("aria-haspopup", "dialog");
-    b.setAttribute("aria-label", offline ? "Reviews of " + doctor.name
-      : "Read reviews of " + doctor.name + " (" + n + (n === 1 ? " review)" : " reviews)"));
+    b.setAttribute("aria-label", offline ? T("reviews.ariaOffline", { name: doctor.name })
+      : TN("reviews.aria", n, { name: doctor.name }));
     b.addEventListener("click", function () { openReviews(doctor, b); });
     return b;
   }
 
   function onRateClick(doctor, trigger) {
     if (reviews.isOffline && reviews.isOffline()) {
-      openInfoDialog(trigger, doctor.id, "Reviews need the local server", LOCAL_SERVER_MSG);
+      openInfoDialog(trigger, doctor.id, T("reviews.localTitle"), localServerMsg());
       return;
     }
     if (!currentUser()) { openSignIn(trigger, doctor.id); return; }
@@ -400,7 +361,7 @@
     p.id = "mi-info-text";
     dlg.appendChild(p);
     var actions = el("div", "mi-rate-actions");
-    var ok = button("btn btn-primary", "OK");
+    var ok = button("btn btn-primary", T("reviews.ok"));
     ok.addEventListener("click", function () { closeRating(true); });
     actions.appendChild(ok);
     dlg.appendChild(actions);
@@ -408,14 +369,14 @@
   }
 
   function openSignIn(trigger, doctorId) {
-    var dlg = modalShell("Sign in to leave a review", trigger, doctorId, "mi-signin-dialog", "mi-signin-text");
-    var p = el("p", "mi-rate-help", "Reviews are linked to a MedIndex account, so each person can rate a doctor once.");
+    var dlg = modalShell(T("reviews.signinTitle"), trigger, doctorId, "mi-signin-dialog", "mi-signin-text");
+    var p = el("p", "mi-rate-help", T("reviews.signinText"));
     p.id = "mi-signin-text";
     dlg.appendChild(p);
     var actions = el("div", "mi-rate-actions");
-    var signIn = linkButton("btn btn-primary mi-signin-link", "Sign in", SIGNIN_URL);
-    var create = linkButton("btn btn-secondary mi-signup-link", "Create account", SIGNUP_URL);
-    var cancel = button("btn btn-ghost mi-signin-cancel", "Cancel");
+    var signIn = linkButton("btn btn-primary mi-signin-link", T("reviews.signIn"), SIGNIN_URL);
+    var create = linkButton("btn btn-secondary mi-signup-link", T("reviews.createAccount"), SIGNUP_URL);
+    var cancel = button("btn btn-ghost mi-signin-cancel", T("reviews.cancel"));
     cancel.addEventListener("click", function () { closeRating(true); });
     actions.appendChild(signIn); actions.appendChild(create); actions.appendChild(cancel);
     dlg.appendChild(actions);
@@ -423,15 +384,15 @@
   }
 
   function openRating(doctor, trigger) {
-    var dlg = modalShell("Rate " + doctor.name, trigger, doctor.id, null, "mi-rate-help");
-    var help = el("p", "mi-rate-help", "Your review is shown on MedIndex with your display name. One review per doctor.");
+    var dlg = modalShell(T("reviews.rateTitle", { name: doctor.name }), trigger, doctor.id, null, "mi-rate-help");
+    var help = el("p", "mi-rate-help", T("reviews.rateHelp"));
     help.id = "mi-rate-help";
     dlg.appendChild(help);
 
     var form = el("form", "mi-rate-form");
     form.noValidate = true;
     var fs = el("fieldset", "mi-rate-stars");
-    fs.appendChild(el("legend", null, "Your rating"));
+    fs.appendChild(el("legend", null, T("reviews.yourRating")));
     var row = el("div", "mi-rate-row");
     var labels = [];
     for (var i = 1; i <= 5; i++) {
@@ -441,13 +402,13 @@
       var lab = el("label", "mi-rate-star");
       lab.setAttribute("for", id);
       lab.appendChild(icon("starFill"));
-      lab.appendChild(srOnly(i === 1 ? "1 star" : i + " stars"));
+      lab.appendChild(srOnly(TN("reviews.star", i)));
       row.appendChild(input);
       row.appendChild(lab);
       labels.push(lab);
     }
     fs.appendChild(row);
-    var chosen = el("p", "mi-rate-chosen", "No stars selected");
+    var chosen = el("p", "mi-rate-chosen", T("reviews.noStars"));
     chosen.setAttribute("aria-hidden", "true");
     fs.appendChild(chosen);
     form.appendChild(fs);
@@ -456,7 +417,7 @@
     function current() { var c = form.querySelector(".mi-rate-input:checked"); return c ? +c.value : 0; }
     row.addEventListener("change", function () {
       var n = current(); paint(n);
-      chosen.textContent = n ? n + (n === 1 ? " star" : " stars") + " out of 5" : "No stars selected";
+      chosen.textContent = n ? TN("reviews.chosen", n) : T("reviews.noStars");
       err.hidden = true;
     });
     labels.forEach(function (l, idx) {
@@ -465,14 +426,14 @@
     row.addEventListener("mouseleave", function () { paint(current()); });
 
     var cField = el("div", "mi-rate-field");
-    var cLabel = el("label", null, "Comment (optional)");
+    var cLabel = el("label", null, T("reviews.comment"));
     cLabel.setAttribute("for", "mi-rate-comment");
     var ta = el("textarea", "mi-rate-comment");
     ta.id = "mi-rate-comment"; ta.rows = 3; ta.maxLength = reviews.MAX_COMMENT || 280;
     ta.setAttribute("aria-describedby", "mi-rate-count");
-    var count = el("p", "mi-rate-count", "0 / " + ta.maxLength + " characters");
+    var count = el("p", "mi-rate-count", T("reviews.chars", { n: 0, max: ta.maxLength }));
     count.id = "mi-rate-count";
-    ta.addEventListener("input", function () { count.textContent = ta.value.length + " / " + ta.maxLength + " characters"; });
+    ta.addEventListener("input", function () { count.textContent = T("reviews.chars", { n: ta.value.length, max: ta.maxLength }); });
     cField.appendChild(cLabel); cField.appendChild(ta); cField.appendChild(count);
     form.appendChild(cField);
 
@@ -482,9 +443,9 @@
     form.appendChild(err);
 
     var actions = el("div", "mi-rate-actions");
-    var submit = el("button", "btn btn-primary", "Submit");
+    var submit = el("button", "btn btn-primary", T("reviews.submit"));
     submit.type = "submit";
-    var cancel = button("btn btn-ghost", "Cancel");
+    var cancel = button("btn btn-ghost", T("reviews.cancel"));
     cancel.addEventListener("click", function () { closeRating(true); });
     actions.appendChild(submit); actions.appendChild(cancel);
     form.appendChild(actions);
@@ -495,16 +456,16 @@
       e.preventDefault();
       if (submit.disabled) return;
       var stars = current();
-      if (!stars) { showErr("Please choose from 1 to 5 stars."); form.querySelector(".mi-rate-input").focus(); return; }
+      if (!stars) { showErr(T("reviews.errChoose")); form.querySelector(".mi-rate-input").focus(); return; }
       submit.disabled = true;
       reviews.addReview(doctor.id, stars, ta.value, function (e2) {
         if (rating !== mine) return; // the dialog was closed meanwhile
         submit.disabled = false;
         if (!e2) { closeRating(true); return; }
         if (e2.code === "auth") { openSignIn(mine.trigger, doctor.id); return; }
-        if (e2.code === "duplicate") { showErr("You have already reviewed this doctor."); return; }
-        if (e2.code === "offline") { showErr("Reviews need the local server (http://127.0.0.1:8000)."); return; }
-        showErr(e2.error || "Your review could not be saved.");
+        if (e2.code === "duplicate") { showErr(T("reviews.errDuplicate")); return; }
+        if (e2.code === "offline") { showErr(T("reviews.errOffline")); return; }
+        showErr(e2.error || T("reviews.errSave"));
       });
     });
     function showErr(msg) { err.textContent = msg; err.hidden = false; }
@@ -513,12 +474,12 @@
 
   /** Written reviews viewer: renders exactly what the server returns (it limits non-premium users). */
   function openReviews(doctor, trigger) {
-    var dlg = modalShell("Reviews of " + doctor.name, trigger, doctor.id, "mi-reviews-dialog");
+    var dlg = modalShell(T("reviews.title", { name: doctor.name }), trigger, doctor.id, "mi-reviews-dialog");
     var body = el("div", "mi-reviews-body");
     body.setAttribute("aria-live", "polite");
     dlg.appendChild(body);
     var actions = el("div", "mi-rate-actions");
-    var close = button("btn btn-ghost mi-reviews-close", "Close");
+    var close = button("btn btn-ghost mi-reviews-close", T("reviews.close"));
     close.addEventListener("click", function () { closeRating(true); });
     actions.appendChild(close);
     dlg.appendChild(actions);
@@ -526,36 +487,36 @@
     var mine = rating;
 
     if (reviews.isOffline && reviews.isOffline()) {
-      body.appendChild(el("p", "mi-rate-help", LOCAL_SERVER_MSG));
+      body.appendChild(el("p", "mi-rate-help", localServerMsg()));
       return;
     }
     body.setAttribute("aria-busy", "true");
-    body.appendChild(el("p", "mi-reviews-loading", "Loading reviews…"));
+    body.appendChild(el("p", "mi-reviews-loading", T("reviews.loading")));
     reviews.list(doctor.id, function (err, data) {
       if (rating !== mine) return;
       body.removeAttribute("aria-busy");
       body.replaceChildren();
       if (err || !data) {
-        body.appendChild(el("p", "mi-rate-help", err && err.status === 0 ? LOCAL_SERVER_MSG : "Reviews could not be loaded. Please try again."));
+        body.appendChild(el("p", "mi-rate-help", err && err.status === 0 ? localServerMsg() : T("reviews.loadErr")));
         return;
       }
       var shown = Array.isArray(data.shown) ? data.shown : [];
       var total = typeof data.total === "number" ? data.total : shown.length;
       body.appendChild(buildStarsLine(doctor));
       if (!shown.length) {
-        body.appendChild(el("p", "mi-reviews-empty", "No written reviews yet."));
+        body.appendChild(el("p", "mi-reviews-empty", T("reviews.empty")));
       } else {
         var ul = el("ul", "mi-reviews-list");
-        ul.setAttribute("aria-label", "Reviews");
+        ul.setAttribute("aria-label", T("reviews.list"));
         shown.forEach(function (r) {
           var li = el("li", "mi-review");
           var head = el("div", "mi-review-head");
           var n = Number.isInteger(r && r.stars) ? Math.max(1, Math.min(5, r.stars)) : 0;
           var st = starRow(n);
           st.setAttribute("role", "img");
-          st.setAttribute("aria-label", n + " out of 5 stars");
+          st.setAttribute("aria-label", T("reviews.reviewStars", { n: n }));
           head.appendChild(st);
-          head.appendChild(el("span", "mi-review-author", (r && r.author) ? String(r.author) : "MedIndex user"));
+          head.appendChild(el("span", "mi-review-author", (r && r.author) ? String(r.author) : T("reviews.anon")));
           var day = formatDay(r && r.createdAt);
           if (day) head.appendChild(el("span", "mi-review-date", day));
           li.appendChild(head);
@@ -566,8 +527,8 @@
       }
       if (data.limited) {
         var foot = el("p", "mi-reviews-limited");
-        foot.appendChild(document.createTextNode("Showing " + shown.length + " of " + total + " reviews. Premium members can read all reviews. "));
-        foot.appendChild(linkButton("mi-premium-link", "See Premium", "premium.html"));
+        foot.appendChild(document.createTextNode(T("reviews.limited", { shown: shown.length, total: total })));
+        foot.appendChild(linkButton("mi-premium-link", T("reviews.seePremium"), "premium.html"));
         body.appendChild(foot);
       }
       if (reviews.hasReviewed(doctor.id)) app.rerender(); // the "You rated" state may be new
@@ -612,7 +573,10 @@
   }
 
   function setBestEnabled(on) {
-    app.registerSort("best", on ? BEST_LABEL_ON : BEST_LABEL_OFF, compareBest, on);
+    var key = on ? "dir.sort.best" : "dir.sort.bestOff";
+    app.registerSort("best", T(key), compareBest, on);
+    var opt = document.querySelector('#sort option[value="best"]');
+    if (opt) opt.setAttribute("data-i18n", key); // js/i18n.js apply() keeps the right label on a switch
   }
 
   /* ---------- Top picks ---------- */
@@ -621,7 +585,7 @@
   function buildPicksShell(mount) {
     mount.replaceChildren();
     var head = el("div", "mi-picks-head");
-    var h = el("h2", "mi-picks-title", "Top picks for you");
+    var h = L(el("h2", "mi-picks-title"), "dir.picks.title");
     h.id = "top-picks-title";
     h.tabIndex = -1;
     head.appendChild(h);
@@ -631,12 +595,13 @@
 
     var group = el("div", "mi-chips mi-priority");
     group.setAttribute("role", "group");
-    group.setAttribute("aria-label", "Rank by priority");
+    LA(group, "aria-label", "dir.picks.priority");
     var chips = {};
     ["best", "price", "nearest", "rated", "senior"].forEach(function (key) {
       var p = ranking.WEIGHT_PRESETS[key];
       if (!p) return;
-      var b = button("mi-chip", p.label.en);
+      var b = button("mi-chip", null);
+      L(b, "dir.picks.preset." + key);
       b.setAttribute("aria-pressed", "false");
       b.addEventListener("click", function () {
         if (preset === key) return;
@@ -654,10 +619,10 @@
 
     var list = el("ol", "mi-picks-list");
     mount.appendChild(list);
-    var empty = el("p", "mi-picks-empty", "No doctors match your current filters. Try another specialty, include more hospital networks, or turn off \"Accepts CNAS\".");
+    var empty = L(el("p", "mi-picks-empty"), "dir.picks.empty");
     empty.hidden = true;
     mount.appendChild(empty);
-    mount.appendChild(el("p", "mi-picks-disclaimer", RANK_DISCLAIMER));
+    mount.appendChild(L(el("p", "mi-picks-disclaimer"), "dir.picks.disclaimer"));
     picks = { mount: mount, chips: chips, list: list, empty: empty, note: note, sub: sub };
   }
 
@@ -678,21 +643,22 @@
     var top = el("div", "mi-pick-top");
     var medal = el("span", "mi-medal mi-medal-" + (i + 1));
     medal.setAttribute("role", "img");
-    medal.setAttribute("aria-label", "Rank " + (i + 1));
+    medal.setAttribute("aria-label", T("dir.picks.medal", { n: i + 1 }));
     medal.appendChild(icon("medal"));
     medal.appendChild(el("span", "mi-medal-num", "#" + (i + 1)));
     top.appendChild(medal);
     var ident = el("div", "mi-pick-ident");
-    var name = el("h3", "mi-pick-name", d.name);
-    name.id = "pick-" + d.id + "-name";
-    ident.appendChild(name);
-    ident.appendChild(el("p", "mi-pick-meta", d.specialty + " · " + d.hospital));
+    if (app.buildNameRow) ident.appendChild(app.buildNameRow("h3", "mi-pick-name", "pick-" + d.id + "-name", d));
+    else { var name = el("h3", "mi-pick-name", d.name); name.id = "pick-" + d.id + "-name"; ident.appendChild(name); }
+    ident.appendChild(el("p", "mi-pick-meta", spec(d.specialty) + " · " + d.hospital));
     top.appendChild(ident);
+    var heart = app.buildHeart ? app.buildHeart(d) : null;
+    if (heart) top.appendChild(heart);
     card.appendChild(top);
 
     var tags = el("div", "badges mi-pick-tags");
     tags.appendChild(matchChip(r));
-    if (r.unrated) tags.appendChild(el("span", "badge mi-unrated", "Unrated"));
+    if (r.unrated) tags.appendChild(el("span", "badge mi-unrated", T("dir.picks.unrated")));
     card.appendChild(tags);
 
     var price = el("p", "mi-pick-price");
@@ -704,30 +670,34 @@
     card.appendChild(buildStarsLine(d));
     if (typeof r.distanceKm === "number") {
       var o = app.getOrigin();
-      card.appendChild(el("p", "mi-pick-dist", (Math.round(r.distanceKm * 10) / 10).toFixed(1) + " km from " + (o && o.kind === "gps" ? "you" : (o && o.label) || "you")));
+      card.appendChild(el("p", "mi-pick-dist", app.distText ? app.distText(r.distanceKm, o) : (Math.round(r.distanceKm * 10) / 10).toFixed(1) + " km"));
     }
     var reason = reasonFor(d.specialty);
     if (reason) {
       var rp = el("p", "mi-pick-reason");
-      rp.appendChild(el("span", "mi-pick-reason-label", "Why this specialty: "));
+      rp.appendChild(el("span", "mi-pick-reason-label", T("dir.picks.reason")));
       rp.appendChild(document.createTextNode(reason));
       card.appendChild(rp);
     }
 
     var det = el("details", "mi-why");
-    det.appendChild(el("summary", null, "Why this rank?"));
+    det.appendChild(el("summary", null, T("dir.picks.why")));
     var ul = el("ul", "mi-why-list");
-    ranking.explain(r, "en").split(" / ").forEach(function (part) { if (part) ul.appendChild(el("li", null, part)); });
+    (r.components || []).forEach(function (c) {
+      var pts = Number.isInteger(c.points) ? String(c.points) : c.points.toFixed(1);
+      if (uiLang() === "ro") pts = pts.replace(".", ",");
+      ul.appendChild(el("li", null, T("dir.why." + (c.note || c.key)) + " +" + pts));
+    });
     det.appendChild(ul);
-    det.appendChild(el("p", "mi-why-total", "Total: " + r.score + "/100"));
+    det.appendChild(el("p", "mi-why-total", T("dir.picks.total", { n: r.score })));
     card.appendChild(det);
 
     var url = safeUrl(d.profileUrl);
     if (url) {
       var a = el("a", "btn btn-primary mi-pick-profile");
       a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
-      a.setAttribute("aria-label", "View profile of " + d.name + " (opens in a new tab)");
-      a.appendChild(el("span", null, "View profile"));
+      a.setAttribute("aria-label", T("dir.profileAria", { name: d.name }));
+      a.appendChild(el("span", null, T("dir.profile")));
       a.appendChild(icon("external"));
       card.appendChild(a);
     }
@@ -745,11 +715,11 @@
     }
     if (!picks || picks.mount !== mount || !mount.contains(picks.list)) buildPicksShell(mount);
     Object.keys(picks.chips).forEach(function (k) { picks.chips[k].setAttribute("aria-pressed", k === preset ? "true" : "false"); });
-    var names = ctx.suggestions.map(function (s) { return s.specialty; });
-    picks.sub.textContent = "Based on your answers: " + names.join(", ") + ". Uses the filters on this page.";
+    var names = ctx.suggestions.map(function (s) { return spec(s.specialty); });
+    picks.sub.textContent = T("dir.picks.sub", { list: names.join(", ") });
     var origin = app.getOrigin();
     picks.note.hidden = !(preset === "nearest" && !origin);
-    picks.note.textContent = "Share your location or pick an area in the filters to rank by distance.";
+    L(picks.note, "dir.picks.note");
 
     var top = rankCache.list.slice(0, 3);
     var frag = document.createDocumentFragment();
@@ -761,7 +731,14 @@
   }
 
   /* ---------- Chat panel ---------- */
-  var fab, panel, log, form, input, sendBtn, privacy, headRestart, headHistory, histView, cloudNote, cloudStatus;
+  var fab, panel, log, form, input, sendBtn, privacy, headRestart, headHistory, histView, cloudNote, cloudStatus, warnMsg, welcomeMsg;
+  /** The warning follows the UI language (EN exact text / RO); the class marks which one is shown. */
+  function paintWarning() {
+    if (!warnMsg) return;
+    var ro = uiLang() === "ro";
+    warnMsg.className = "mi-warning-msg " + (ro ? "mi-warning-ro-main" : "mi-warning-en");
+    warnMsg.setAttribute("lang", ro ? "ro" : "en");
+  }
 
   function buildPanel() {
     fab = el("button", "mi-fab");
@@ -771,7 +748,7 @@
     fab.setAttribute("aria-expanded", "false");
     fab.setAttribute("aria-controls", "mi-panel");
     fab.appendChild(icon("chat"));
-    fab.appendChild(el("span", null, "Find my specialist"));
+    fab.appendChild(L(el("span"), "chat.fab"));
     fab.addEventListener("click", openPanel);
 
     panel = el("div", "mi-panel");
@@ -782,21 +759,21 @@
     panel.hidden = true;
 
     var head = el("div", "mi-panel-head");
-    var title = el("h2", "mi-panel-title", STR.en.title);
+    var title = L(el("h2", "mi-panel-title"), "chat.title");
     title.id = "mi-panel-title";
     head.appendChild(title);
-    headHistory = button("mi-icon-btn mi-head-history", "History", "history");
-    headHistory.setAttribute("aria-label", "Saved chat history");
+    headHistory = lbutton("mi-icon-btn mi-head-history", "chat.history", "history");
+    LA(headHistory, "aria-label", "chat.historyAria");
     headHistory.setAttribute("aria-expanded", "false");
     headHistory.setAttribute("aria-controls", "mi-history");
     headHistory.hidden = true; // premium only (UI hint; the server decides)
     headHistory.addEventListener("click", function () { if (histOpen()) closeHistory(true); else openHistory(); });
     head.appendChild(headHistory);
-    headRestart = button("mi-icon-btn mi-head-restart", "Start over", "restart");
+    headRestart = lbutton("mi-icon-btn mi-head-restart", "chat.startOver", "restart");
     headRestart.addEventListener("click", startOver);
     head.appendChild(headRestart);
     var close = button("mi-icon-btn mi-close", null, "close");
-    close.setAttribute("aria-label", "Close the assistant");
+    LA(close, "aria-label", "chat.close");
     close.addEventListener("click", function () { closePanel(true); });
     head.appendChild(close);
     panel.appendChild(head);
@@ -810,7 +787,7 @@
     log = el("div", "mi-log");
     log.setAttribute("aria-live", "polite");
     log.setAttribute("aria-relevant", "additions");
-    log.setAttribute("aria-label", "Conversation");
+    LA(log, "aria-label", "chat.conversation");
     log.setAttribute("role", "log");
     panel.appendChild(log);
 
@@ -821,27 +798,26 @@
     warn.setAttribute("role", "note");
     warn.appendChild(icon("warn", "mi-warning-icon"));
     var warnText = el("p", "mi-warning-text");
-    warnText.appendChild(el("span", "mi-warning-en", engine.text("WARNING", "en")));
-    var warnRo = el("span", "mi-warning-ro", engine.text("WARNING", "ro"));
-    warnRo.setAttribute("lang", "ro");
-    warnText.appendChild(warnRo);
+    warnMsg = L(el("span", "mi-warning-msg"), "chat.warning");
+    warnText.appendChild(warnMsg);
+    paintWarning();
     warn.appendChild(warnText);
     foot.appendChild(warn);
     form = el("form", "mi-form");
     form.noValidate = true;
-    var lab = el("label", "mi-sr-only", STR.en.inputLabel);
+    var lab = L(el("label", "mi-sr-only"), "chat.inputLabel");
     lab.setAttribute("for", "mi-input");
     input = el("input", "mi-input");
     input.type = "text";
     input.id = "mi-input";
     input.autocomplete = "off";
     input.maxLength = 500;
-    input.placeholder = STR.en.placeholder;
+    LA(input, "placeholder", "chat.placeholder");
     input.setAttribute("aria-describedby", "mi-warning mi-privacy");
     var send = sendBtn = el("button", "btn btn-primary mi-send");
     send.type = "submit";
     send.appendChild(icon("send"));
-    send.appendChild(el("span", null, "Send"));
+    send.appendChild(L(el("span"), "chat.send"));
     form.appendChild(lab);
     form.appendChild(input);
     form.appendChild(send);
@@ -854,21 +830,21 @@
       sendUser(t);
     });
     foot.appendChild(form);
-    privacy = el("p", "mi-privacy", engine.USE_LLM ? (engine.LLM_NOTICE || "Your message is sent to an AI service.") : STR.en.privacy);
+    privacy = L(el("p", "mi-privacy"), engine.USE_LLM ? "chat.llmNotice" : "chat.privacy");
     privacy.id = "mi-privacy";
     foot.appendChild(privacy);
-    cloudNote = el("p", "mi-cloud-note", "Premium: this chat is saved to your History.");
+    cloudNote = L(el("p", "mi-cloud-note"), "chat.cloudNote");
     cloudNote.id = "mi-cloud-note";
     cloudNote.hidden = true;
     foot.appendChild(cloudNote);
-    cloudStatus = el("p", "mi-cloud-status", "History not saved");
+    cloudStatus = L(el("p", "mi-cloud-status"), "chat.cloudStatus");
     cloudStatus.id = "mi-cloud-status";
     cloudStatus.setAttribute("role", "status");
     cloudStatus.hidden = true;
     foot.appendChild(cloudStatus);
     if (!engine.USE_LLM && engine.FILE_MODE) {
       // Opened from disk: rule mode only (the proxy accepts only http://127.0.0.1:8000).
-      var hint = el("p", "mi-file-hint", engine.text("FILE_HINT", "en"));
+      var hint = L(el("p", "mi-file-hint"), "chat.fileHint");
       hint.id = "mi-file-hint";
       foot.appendChild(hint);
     }
@@ -908,7 +884,11 @@
   function addMsg(role, lang) {
     var m = el("div", "mi-msg mi-msg-" + role);
     m.setAttribute("lang", lang || "en");
-    m.appendChild(srOnly(role === "user" ? S("you", lang) + " " : S("bot", lang) + " "));
+    // Speaker label is UI chrome: use the UI language, not the message language.
+    var ul = uiLang();
+    var who = srOnly(role === "user" ? S("you", ul) + " " : S("bot", ul) + " ");
+    who.setAttribute("lang", ul);
+    m.appendChild(who);
     log.appendChild(m);
     return m;
   }
@@ -939,16 +919,49 @@
     return b;
   }
 
-  function renderWelcome() {
-    var m = addMsg("bot", "en");
-    m.appendChild(el("p", null, engine.WELCOME.en));
-    var row = chipRow(STR.en.quick);
+  /** The welcome + quick replies follow the UI language (rebuilt in place on a language switch). */
+  function fillWelcome(m) {
+    var lang = uiLang();
+    m.replaceChildren();
+    m.setAttribute("lang", lang);
+    m.appendChild(srOnly(S("bot", lang) + " "));
+    m.appendChild(el("p", null, (engine.WELCOME && (engine.WELCOME[lang] || engine.WELCOME.en)) || ""));
+    var row = chipRow(S("quick", lang));
     (engine.QUICK_REPLIES || []).forEach(function (q) {
-      var b = button("mi-chip", q.label.en);
-      b.addEventListener("click", function () { sendUser(q.text[chat.lang] || q.text.en); });
+      var b = button("mi-chip", q.label[lang] || q.label.en);
+      b.addEventListener("click", function () { var l = uiLang(); sendUser(q.text[l] || q.text.en); });
       row.appendChild(b);
     });
     m.appendChild(row);
+  }
+  function renderWelcome() {
+    var m = addMsg("bot", uiLang());
+    m.classList.add("mi-welcome");
+    fillWelcome(m);
+    welcomeMsg = m;
+  }
+
+  /** Language of a reply: the user's message language; ambiguous text (chips, numbers, "adult") -> the UI language. */
+  function replyLang(text) {
+    if (!text || isLanguageNeutral(text)) return uiLang();
+    return engine.detectLanguage(text) === "ro" ? "ro" : "en";
+  }
+
+  /** UI language switch: chrome is re-labelled by js/i18n.js (data-i18n); this handles the rest. State is kept. */
+  function onUiLang() {
+    paintWarning();
+    if (welcomeMsg && log && log.contains(welcomeMsg)) fillWelcome(welcomeMsg);
+    Array.prototype.forEach.call(document.querySelectorAll(".mi-sugg-name[data-spec]"), function (n) {
+      n.textContent = spec(n.getAttribute("data-spec"));
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".mi-show[data-spec]"), function (b) {
+      b.setAttribute("aria-label", S("showDoctors", b.getAttribute("lang") || "en") + ": " + spec(b.getAttribute("data-spec")));
+    });
+    if (input) LA(input, "placeholder", viewing ? "chat.continueHint" : "chat.placeholder");
+    var opt = document.querySelector('#sort option[value="best"]');
+    if (opt && opt.getAttribute("data-i18n")) opt.textContent = T(opt.getAttribute("data-i18n"));
+    if (histOpen()) openHistory();
+    picks = null; // the Top picks shell is rebuilt by the next render
   }
 
   function availableSpecialties() {
@@ -1082,7 +1095,7 @@
     }
 
     chat.busy = true;
-    var lang = engine.detectLanguage(chat.text) === "ro" ? "ro" : "en";
+    var lang = replyLang(chat.text);
     var facts = engine.extractFacts(round.msgs, { asked: round.asked, base: round.base });
     var typing = addMsg("bot", lang);
     typing.classList.add("mi-typing");
@@ -1105,6 +1118,7 @@
       };
     }
 
+    chat.targetLang = lang;
     if (!engine.USE_LLM) { setTimeout(done(function () { answerWithRules(false); }), 0); return; }
     var payload = { who: facts.who, duration: facts.duration, severity: facts.severity, turn: Math.min(50, round.msgs.length) };
     engine.chatWithLLM(chat.history.slice(), payload, availableSpecialties(), lang, { conversationId: chat.cid })
@@ -1123,7 +1137,8 @@
   function answerWithRules(aiFailed) {
     var round = chat.round;
     var msgs = round.msgs;
-    if (chat.lang === "ro" && msgs.length && isLanguageNeutral(msgs.join("\n"))) {
+    var target = chat.targetLang || chat.lang;
+    if (target === "ro" && msgs.length && isLanguageNeutral(msgs.join("\n"))) {
       // Keep the conversation language: a neutral word ("si" = "and") only steers the reply language.
       msgs = msgs.slice(0, -1).concat([msgs[msgs.length - 1] + " si"]);
     }
@@ -1279,7 +1294,7 @@
     var top = el("div", "mi-meter-top");
     var conf = el("span", "mi-conf " + (CONF_CLASS[label] || "is-low"));
     conf.appendChild(el("span", "mi-conf-dot"));
-    conf.appendChild(el("span", null, S("confidence", lang) + ": " + (S("conf", lang)[label] || label)));
+    conf.appendChild(el("span", null, S("confidence", lang) + ": " + confText(label, lang)));
     top.appendChild(conf);
     wrap.appendChild(top);
     if (score == null) return wrap;
@@ -1302,7 +1317,7 @@
     meter.setAttribute("aria-valuemin", "0");
     meter.setAttribute("aria-valuemax", "100");
     meter.setAttribute("aria-valuenow", String(score));
-    meter.setAttribute("aria-valuetext", score + "%, " + (S("conf", lang)[label] || label));
+    meter.setAttribute("aria-valuetext", score + "%, " + confText(label, lang));
     meter.setAttribute("aria-label", S("meterAria", lang) + " " + score + "%");
     var fill = el("span", "mi-meter-fill " + (CONF_CLASS[label] || "is-low"));
     meter.appendChild(fill);
@@ -1345,13 +1360,17 @@
     sugg.forEach(function (s) {
       var li = el("li", "mi-sugg");
       var head = el("div", "mi-sugg-head");
-      head.appendChild(el("h3", "mi-sugg-name", s.specialty));
+      var nm = el("h3", "mi-sugg-name", spec(s.specialty));
+      nm.setAttribute("data-spec", s.specialty);
+      head.appendChild(nm);
       li.appendChild(head);
       li.appendChild(confidenceBlock(s, lang, track));
       if (s.reason) li.appendChild(el("p", "mi-sugg-reason", s.reason));
       if (s.note) li.appendChild(el("p", "mi-sugg-note", s.note));
       var show = button("btn btn-primary mi-show", S("showDoctors", lang));
-      show.setAttribute("aria-label", S("showDoctors", lang) + ": " + s.specialty);
+      show.setAttribute("aria-label", S("showDoctors", lang) + ": " + spec(s.specialty));
+      show.setAttribute("data-spec", s.specialty);
+      show.setAttribute("lang", lang);
       show.addEventListener("click", function () { showDoctors(s, sugg); });
       li.appendChild(show);
       list.appendChild(li);
@@ -1527,43 +1546,43 @@
     headHistory.setAttribute("aria-expanded", "true");
     histView.replaceChildren();
     var head = el("div", "mi-history-head");
-    var h = el("h3", "mi-history-title", "Saved chats");
+    var h = L(el("h3", "mi-history-title"), "chat.historyTitle");
     h.id = "mi-history-title";
     h.tabIndex = -1;
     head.appendChild(h);
-    var back = button("btn btn-ghost mi-history-back", "Back to chat");
+    var back = lbutton("btn btn-ghost mi-history-back", "chat.back");
     back.addEventListener("click", function () { closeHistory(true); });
     head.appendChild(back);
     histView.appendChild(head);
     var body = el("div", "mi-history-body");
     body.setAttribute("aria-live", "polite");
     body.setAttribute("aria-busy", "true");
-    body.appendChild(el("p", "mi-history-msg", "Loading your chats…"));
+    body.appendChild(el("p", "mi-history-msg", T("chat.loadingChats")));
     histView.appendChild(body);
     h.focus();
     var chats = chatsApi();
-    if (!chats || typeof chats.list !== "function") { showListMsg(body, "History is unavailable right now."); return; }
+    if (!chats || typeof chats.list !== "function") { showListMsg(body, T("chat.historyUnavailable")); return; }
     chats.list(function (err, data) {
       if (!histOpen()) return;
       body.removeAttribute("aria-busy");
       body.replaceChildren();
       if (err) {
         if (err.status === 403 || err.status === 401) {
-          var p = el("p", "mi-history-msg", "Chat history is a Premium feature. ");
-          p.appendChild(linkButton("mi-premium-link", "See Premium", "premium.html"));
+          var p = el("p", "mi-history-msg", T("chat.historyPremium"));
+          p.appendChild(linkButton("mi-premium-link", T("reviews.seePremium"), "premium.html"));
           body.appendChild(p);
-        } else showListMsg(body, "History is unavailable right now.");
+        } else showListMsg(body, T("chat.historyUnavailable"));
         return;
       }
       var items = Array.isArray(data) ? data : (data && (data.chats || data.items)) || [];
-      if (!items.length) { showListMsg(body, "No saved chats yet. Your next conversation will be saved here."); return; }
+      if (!items.length) { showListMsg(body, T("chat.noChats")); return; }
       var ul = el("ul", "mi-history-list");
       items.forEach(function (c) {
         if (!c || c.id == null) return;
         var li = el("li", "mi-history-item");
         var b = el("button", "mi-history-open");
         b.type = "button";
-        b.appendChild(el("span", "mi-history-name", String(c.title || "Untitled chat")));
+        b.appendChild(el("span", "mi-history-name", String(c.title || T("chat.untitled"))));
         var day = formatDay(c.updatedAt || c.createdAt);
         if (day) b.appendChild(el("span", "mi-history-date", day));
         b.addEventListener("click", function () { loadSavedChat(c.id); });
@@ -1595,7 +1614,7 @@
     chats.get(id, function (err, data) {
       var c = data && (data.chat || data);
       if (err || !c) {
-        if (histOpen()) showListMsg(histView.querySelector(".mi-history-body") || histView, err && err.status === 404 ? "This chat was not found." : "This chat could not be opened.");
+        if (histOpen()) showListMsg(histView.querySelector(".mi-history-body") || histView, err && err.status === 404 ? T("chat.notFound") : T("chat.cantOpen"));
         if (done) done(false);
         return;
       }
@@ -1693,15 +1712,15 @@
     var banner = el("div", "mi-saved-banner");
     banner.setAttribute("role", "status");
     var t = el("p", "mi-saved-title");
-    t.appendChild(el("span", "mi-saved-label", "Saved chat"));
-    t.appendChild(document.createTextNode(": " + String(c.title || "Untitled chat")));
+    t.appendChild(L(el("span", "mi-saved-label"), "chat.savedLabel"));
+    t.appendChild(document.createTextNode(": " + String(c.title || T("chat.untitled"))));
     var day = formatDay(c.updatedAt || c.createdAt);
     if (day) t.appendChild(el("span", "mi-saved-date", " · " + day));
     banner.appendChild(t);
     var acts = el("div", "mi-saved-actions");
-    var cont = button("btn btn-primary mi-continue", "Continue this chat");
+    var cont = lbutton("btn btn-primary mi-continue", "chat.continue");
     cont.addEventListener("click", continueSaved);
-    var neu = button("btn btn-ghost mi-newchat", "New chat");
+    var neu = lbutton("btn btn-ghost mi-newchat", "chat.newChat");
     neu.addEventListener("click", startOver);
     acts.appendChild(cont); acts.appendChild(neu);
     banner.appendChild(acts);
@@ -1739,7 +1758,7 @@
         finishRound(null);
         return;
       }
-      if (p.text == null) bm.appendChild(el("p", "mi-removed", "This message was removed."));
+      if (p.text == null) bm.appendChild(el("p", "mi-removed", T("chat.removed")));
       else { var body = el("div", "mi-reply"); appendFormatted(body, p.text); bm.appendChild(body); }
       var sugg = locked ? [] : savedSuggestions(meta.suggestions, r.msgs.join("\n"), r, lang);
       if (sugg.length) {
@@ -1758,7 +1777,7 @@
     viewing = { id: c.id, title: c.title || "" };
     input.disabled = true;
     sendBtn.disabled = true;
-    input.placeholder = "Tap \"Continue this chat\" to reply";
+    LA(input, "placeholder", "chat.continueHint");
     if (!panelOpen()) openPanel();
     log.scrollTop = 0;
     cont.focus();
@@ -1769,7 +1788,7 @@
     if (!input) return;
     input.disabled = false;
     sendBtn.disabled = false;
-    input.placeholder = STR.en.placeholder;
+    LA(input, "placeholder", "chat.placeholder");
     var b = log && log.querySelector(".mi-saved-actions");
     if (b) b.remove();
   }
@@ -1845,6 +1864,7 @@
     app.onRender(renderTopPicks);
     setBestEnabled(false);
     reviews.onChange(function () { app.rerender(); });
+    if (app.onLangChange) app.onLangChange(onUiLang);
     app.rerender();
     handleHash();
   }
