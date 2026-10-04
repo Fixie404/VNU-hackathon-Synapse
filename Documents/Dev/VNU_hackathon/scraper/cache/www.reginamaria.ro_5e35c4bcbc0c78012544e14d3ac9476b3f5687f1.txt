@@ -1,0 +1,357 @@
+# robots.txt
+
+#
+
+# This file is to prevent the crawling and indexing of certain parts
+
+# of your site by web crawlers and spiders run by sites like Yahoo!
+
+# and Google. By telling these "robots" where not to go on your site,
+
+# you save bandwidth and server resources.
+
+#
+
+# This file will be ignored unless it is at the root of your host:
+
+# Used: http://example.com/robots.txt
+
+# Ignored: http://example.com/site/robots.txt
+
+#
+
+# For more information about the robots.txt standard, see:
+
+# http://www.robotstxt.org/robotstxt.html
+
+
+
+
+
+# CSS, JS, Images
+
+User-agent: *
+
+Allow: /core/*.css$
+
+Allow: /core/*.css?
+
+Allow: /core/*.js$
+
+Allow: /core/*.js?
+
+Allow: /core/*.gif
+
+Allow: /core/*.jpg
+
+Allow: /core/*.jpeg
+
+Allow: /core/*.png
+
+Allow: /core/*.svg
+
+Allow: /profiles/*.css$
+
+Allow: /profiles/*.css?
+
+Allow: /profiles/*.js$
+
+Allow: /profiles/*.js?
+
+Allow: /profiles/*.gif
+
+Allow: /profiles/*.jpg
+
+Allow: /profiles/*.jpeg
+
+Allow: /profiles/*.png
+
+Allow: /profiles/*.svg
+
+# Directories
+
+Disallow: /core/
+
+Disallow: /profiles/
+
+# Files
+
+Disallow: /README.txt
+
+Disallow: /web.config
+
+# Paths (clean URLs)
+
+Disallow: /admin/
+
+Disallow: /comment/reply/
+
+Disallow: /filter/tips
+
+Disallow: /node/add/
+
+Disallow: /search/
+
+Disallow: /user/register/
+
+Disallow: /user/password/
+
+Disallow: /user/login/
+
+Disallow: /user/logout/
+
+Disallow: */program?*
+
+Disallow: */programare?*
+
+Disallow: /regina-maria/sitemap.xml
+
+Disallow: /rezultate-cautare/
+
+Disallow: /rezultate-cautare/*
+
+# Paths (no clean URLs)
+
+Disallow: /index.php/admin/
+
+Disallow: /index.php/comment/reply/
+
+Disallow: /index.php/filter/tips
+
+Disallow: /index.php/node/add/
+
+Disallow: /index.php/search/
+
+Disallow: /index.php/user/password/
+
+Disallow: /index.php/user/register/
+
+Disallow: /index.php/user/login/
+
+Disallow: /index.php/user/logout/
+
+Disallow: /medici/dr-stan-iuliu
+
+# Query parameters
+Disallow: */medici?
+Disallow: */specialitati?
+Disallow: */laborator/gama-de-analize?
+Disallow: */laboratoare-inteligente/gama-de-analize?
+Disallow: */en?
+Disallow: */investigatii?
+Disallow: /*?location=
+
+#
+
+# This file is to prevent the crawling and indexing of certain parts
+
+# of your site by web crawlers and spiders run by sites like Yahoo!
+
+# and Google. By telling these "robots" where not to go on your site,
+
+# you save bandwidth and server resources.
+
+#
+
+# This file will be ignored unless it is at the root of your host:
+
+# Used: http://example.com/robots.txt
+
+# Ignored: http://example.com/site/robots.txt
+
+#
+
+# For more information about the robots.txt standard, see:
+
+# http://www.robotstxt.org/robotstxt.html
+
+
+
+User-agent: *
+
+# CSS, JS, Images
+
+Allow: /core/*.css$
+
+Allow: /core/*.css?
+
+Allow: /core/*.js$
+
+Allow: /core/*.js?
+
+Allow: /core/*.gif
+
+Allow: /core/*.jpg
+
+Allow: /core/*.jpeg
+
+Allow: /core/*.png
+
+Allow: /core/*.svg
+
+Allow: /profiles/*.css$
+
+Allow: /profiles/*.css?
+
+Allow: /profiles/*.js$
+
+Allow: /profiles/*.js?
+
+Allow: /profiles/*.gif
+
+Allow: /profiles/*.jpg
+
+Allow: /profiles/*.jpeg
+
+Allow: /profiles/*.png
+
+Allow: /profiles/*.svg
+
+# Directories
+
+Disallow: /core/
+
+Disallow: /profiles/
+
+# Files
+
+Disallow: /README.txt
+
+Disallow: /web.config
+
+# Paths (clean URLs)
+
+Disallow: /admin/
+
+Disallow: /comment/reply/
+
+Disallow: /filter/tips
+
+Disallow: /node/add/
+
+Disallow: /search/
+
+Disallow: /rezultate-analize
+
+Disallow: /user/register/
+
+Disallow: /user/password/
+
+Disallow: /user/login/
+
+Disallow: /user/logout/
+
+Disallow: /user
+
+Disallow: /users/
+
+Disallow: /info/
+
+Disallow: /flag/
+
+Disallow: */program?*
+
+Disallow: */programare?*
+
+Disallow: /regina-maria/sitemap.xml
+
+Disallow: /rezultate-cautare/
+
+Disallow: /rezultate-cautare/*
+
+# Paths (no clean URLs)
+
+Disallow: /index.php/admin/
+
+Disallow: /index.php/comment/reply/
+
+Disallow: /index.php/filter/tips
+
+Disallow: /index.php/node/add/
+
+Disallow: /index.php/search/
+
+Disallow: /index.php/user/password/
+
+Disallow: /index.php/user/register/
+
+Disallow: /index.php/user/login/
+
+Disallow: /index.php/user/logout/
+
+Disallow: /medici/dr-stan-iuliu
+
+# Query parameters
+
+Disallow: */medici?
+
+Disallow: */specialitati?
+
+Disallow: */laborator/gama-de-analize?
+
+Disallow: */laboratoare-inteligente/gama-de-analize?
+
+Disallow: */en?
+
+Disallow: */investigatii?
+
+Disallow: /*?location=
+
+# Dynamic PHP endpoints
+
+Disallow: /status.php
+
+Disallow: /apc.php
+
+Disallow: /update.php
+
+Disallow: /cron.php
+
+Disallow: /install.php
+
+Disallow: /*.php$
+
+Disallow: /*.php?*
+
+Allow: /llms.txt
+
+Allow: /llms-full.txt
+
+# Query parameters
+
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+Sitemap: https://www.reginamaria.ro/index/sitemap.xml
+
+Sitemap: https://www.reginamaria.ro/article/sitemap.xml
+
+Sitemap: https://www.reginamaria.ro/news/sitemap.xml
+
+Sitemap: https://www.reginamaria.ro/location/sitemap.xml
+
+Sitemap: https://www.reginamaria.ro/medic/sitemap.xml
+
+Sitemap: https://www.reginamaria.ro/dictionare/sitemap.xml
+
+Sitemap: https://www.reginamaria.ro/mainpages/sitemap.xml
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+User-agent: Claude-Web
+Allow: /
+User-agent: CCBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: druid-kb
+Allow: /

@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MedIndex engine tests</title>
+<style>body{font:14px/1.4 monospace;padding:16px}.pass{color:#060}.fail{color:#b00;font-weight:bold}</style>
+</head>
+<body>
+<h1>MedIndex engine tests</h1>
+<pre id="out"></pre>
+<script src="../data/doctors.js"></script>
+<script src="../data/symptoms.js"></script>
+<script src="engine.js"></script>
+<script>
+(function () {
+  var lines = [], passed = 0, failed = 0;
+  var E = window.MedIndex && window.MedIndex.engine;
+  var AVAIL = [];
+  (window.DOCTORS || []).forEach(function (d) { if (AVAIL.indexOf(d.specialty) < 0) AVAIL.push(d.specialty); });
+
+  function ok(name, cond, detail) {
+    if (cond) { passed++; lines.push("PASS " + name); }
+    else { failed++; lines.push("FAIL " + name + (detail ? "  -> " + detail : "")); }
+  }
+  function brief(r) {
+    return JSON.stringify({ lang: r.lang, redFlag: r.redFlag, s: r.suggestions.map(function (s) { return s.specialty + ":" + s.confidence + ":" + s.score; }),
+      f: r.followUp && r.followUp.id, u: r.urgencyNote });
+  }
+  function A(text, answers) { return E.analyze(text, answers || {}, AVAIL); }
+  function first(r) { return r.suggestions[0] && r.suggestions[0].specialty; }
+  function noRF(r) { return !r.redFlag; }
+
+  try {
+    ok("engine exists on window.MedIndex.engine", !!E);
+    ok("dataset loaded", AVAIL.length > 10, AVAIL.length);
+
+    // ---- Acceptance tests
+    var r = A("mă doare pieptul și nu pot respira");
+    ok("1. chest + can't breathe -> red flag, no suggestions", r.redFlag && r.suggestions.length === 0 && r.followUp === null && !!r.redFlagReason, brief(r));
+
+    r = A("am erupții pe piele care mă mănâncă");
+    ok("2. eruptii + mananca -> Dermatology first", first(r) === "Dermatology" && noRF(r), brief(r));
+
+    r = A("copilul meu are febră de 2 zile");
+    ok("3. child fever -> Pediatrics first", first(r) === "Pediatrics" && noRF(r), brief(r));
+
+    r = A("dureri de cap frecvente și amețeli");
+    ok("4. headache + dizziness -> Neurology/Family Medicine, Medium",
+      (first(r) === "Neurology" || first(r) === "Family Medicine") && r.suggestions[0].confidence === "Medium", brief(r));
+
+    r = A("durere de genunchi când alerg");
+    ok("5. knee pain when running -> Orthopedics first", first(r) === "Orthopedics" && noRF(r), brief(r));
+
+    r = A("mă simt rău");
+    ok("6a. vague -> clarify follow-up, no suggestions", r.followUp && r.followUp.id === "clarify" && r.suggestions.length === 0, brief(r));
+    // Updated: the engine now forces the recommendation at message 5 (answers.turn), not after one clarify;
+    // the fallback is always Low (confidenceScore < 40).
+    r = A("mă simt rău", { turn: 5 });
+    ok("6b. still vague at message 5 -> Family Medicine, Low", first(r) === "Family Medicine" && r.suggestions[0].confidence === "Low", brief(r));
+
+    // ---- English variants
+    r = A("rash and itching");
+    ok("EN rash and itching -> Dermatology", first(r) === "Dermatology" && r.lang === "en", brief(r));
+    r = A("I can't breathe");
+    ok("EN I can't breathe -> red flag", r.redFlag && r.suggestions.length === 0, brief(r));
+    r = A("my child has a cough");
+    ok("EN my child has a cough -> Pediatrics first", first(r) === "Pediatrics", brief(r));
+    r = A("I feel bad");
+    ok("EN I feel bad -> clarify", r.followUp && r.followUp.id === "clarify" && !r.suggestions.length && r.lang === "en", brief(r));
+
+    // ---- Red flag false positives / positives
+    r = A("durere în piept");
+    ok("durere in piept alone -> NOT red flag, Cardiology + urgency", !r.redFlag && first(r) === "Cardiology" && !!r.urgencyNote, brief(r));
+    ok("dry eyes -> Ophthalmology", first(A("I have dry eyes")) === "Ophthalmology", brief(A("I have dry eyes")));
+    ok("burning urine -> Urology", first(A("burning urine")) === "Urology", brief(A("burning urine")));
+    ok("excessive sweating -> Endocrinology", first(A("excessive sweating")) === "Endocrinology", brief(A("excessive sweating")));
+    ok("blocked ear -> ENT", first(A("am urechea înfundată")) === "ENT (Otorhinolaryngology)", brief(A("am urechea înfundată")));
+    r = A("tuse de o săptămână");
+    ok("tuse -> not red flag", !r.redFlag && r.suggestions.length > 0, brief(r));
+    r = A("am avut o criză de panică");
+    ok("criza de panica -> not seizure red flag, Psychiatry", !r.redFlag && first(r) === "Psychiatry", brief(r));
+    r = A("am intoxicație alimentară");
+    ok("intoxicatie alimentara -> not red flag", !r.redFlag, brief(r));
+    r = A("I have chest pain and shortness of breath");
+    ok("EN chest pain + shortness of breath -> red flag", r.redFlag, brief(r));
+    r = A("are gura strâmbă și vorbește greu");
+    ok("stroke signs -> red flag", r.redFlag, brief(r));
+    r = A("brusc cea mai puternică durere de cap");
+    ok("worst headache -> red flag", r.redFlag, brief(r));
+    r = A("am o durere de cap bruscă și insuportabilă");
+    ok("sudden + headache + severe (allOf) -> red flag", r.redFlag, brief(r));
+    r = A("am leșinat azi");
+    ok("lesinat -> red flag", r.redFlag, brief(r));
+    r = A("sângerare abundentă");
+    ok("sangerare abundenta -> red flag", r.redFlag, brief(r));
+    r = A("mi s-a umflat gâtul și buzele");
+    ok("swollen throat/lips -> red flag", r.redFlag, brief(r));
+    r = A("copilul a făcut convulsii");
+    ok("convulsii -> red flag", r.redFlag, brief(r));
+    r = A("vreau să mă omor");
+    ok("self-harm RO -> red flag", r.redFlag, brief(r));
+    r = A("I want to kill myself");
+    ok("self-harm EN -> red flag", r.redFlag, brief(r));
+    r = A("my son swallowed bleach");
+    ok("poisoning EN -> red flag", r.redFlag, brief(r));
+    r = A("cred că sunt otrăvit");
+    ok("otravit -> red flag", r.redFlag, brief(r));
+    r = A("am căzut și m-am lovit la cap și am vărsături");
+    ok("head injury + vomiting -> red flag", r.redFlag, brief(r));
+    r = A("mă doare capul");
+    ok("ma doare capul -> Neurology, not red flag", !r.redFlag && first(r) === "Neurology", brief(r));
+    r = A("am amețeli");
+    ok("ameteli alone -> not red flag", !r.redFlag && r.suggestions.length > 0, brief(r));
+    r = A("am glezna umflată");
+    ok("swollen ankle -> not red flag", !r.redFlag, brief(r));
+    r = A("fata mea are o erupție pe mână");
+    ok("'fata' (girl) with rash -> not red flag, Pediatrics/Derm", !r.redFlag && r.suggestions.length > 0, brief(r));
+
+    // ---- Red flag recall (overdose, self-harm, named emergencies, breathing, bleeding, infant, trauma)
+    ["am luat toate pastilele", "took all my pills", "took 20 tablets", "am luat prea multe pastile",
+      "i want to end it all", "nu vreau sa mai traiesc", "cut my wrists", "mi-am taiat venele", "vreau sa ma arunc de pe bloc",
+      "i want to jump off a bridge", "heart attack", "infarct", "atac de cord", "stroke", "avc", "cant move my arm",
+      "my arm is numb and my speech is slurred", "short of breath", "can barely breathe", "hard time breathing",
+      "breathing difficulty", "abia respir", "my throat is closing", "blood everywhere", "sangereaza si nu se opreste",
+      "nosebleed that wont stop", "baby not breathing", "bebelusul nu respira", "bebelusul are febra 40", "my baby is limp",
+      "bebelusul e moale", "bebelusul nu reactioneaza", "my baby has a fever of 40.5", "car accident", "accident de masina",
+      "i was stabbed", "am fost injunghiat", "severe burn", "arsura grava", "broken bone sticking out", "os iesit prin piele"
+    ].forEach(function (t) {
+      var rr = A(t);
+      ok("red flag: " + t, rr.redFlag && rr.suggestions.length === 0 && !!rr.redFlagReason, brief(rr));
+    });
+    // ---- Red flag recall, round 2
+    ["took a bunch of xanax", "am luat 15 ibuprofen", "10 algocalmin", "bunch of paracetamol", "am inghitit o cutie de xanax",
+      "no reason to live", "life isnt worth living", "nu mai suport sa traiesc", "better off dead", "nu mai vreau sa exist",
+      "lips turning blue", "buzele vinete", "gasping for air", "asthma attack", "criză de astm severă",
+      "throat feels tight after bee sting", "half my face is numb", "nu imi simt mana stanga", "sudden blindness",
+      "am orbit brusc", "vomiting blood", "coughing blood", "am vomitat sange", "tusesc sange", "bebelus 2 luni febra 38",
+      "copilul nu se trezeste", "infant very lethargic", "motorcycle crash", "am cazut de la etaj", "electrocuted",
+      "electrocutat", "near drowning", "s-a inecat", "fell from height", "stiff neck high fever rash", "gât înțepenit și febră mare"
+    ].forEach(function (t) {
+      var rr = A(t);
+      ok("red flag: " + t, rr.redFlag && rr.suggestions.length === 0 && !!rr.redFlagReason, brief(rr));
+    });
+    ["what is a stroke", "heart attack risk factors?", "bebelușul de 6 luni are febră 38", "am astm", "wheezing", "i'm drowning in work"
+    ].forEach(function (t) {
+      var rr = A(t);
+      ok("not red flag: " + t, !rr.redFlag, brief(rr));
+    });
+    // ---- Red flag precision guards for the new rules
+    [["copilul meu are febră de 2 zile", "Pediatrics"], ["my child has a cough", "Pediatrics"],
+      ["copilul meu are febră 39", null], ["bebelușul are scaun moale", null], ["am luat 2 pastile de paracetamol", null],
+      ["severe burning when urinating", null], ["am arsuri grave la stomac", null], ["my son jumped off the swing and hurt his ankle", null]
+    ].forEach(function (c) {
+      var rr = A(c[0]);
+      ok("not red flag: " + c[0] + (c[1] ? " -> " + c[1] : ""), !rr.redFlag && (!c[1] || first(rr) === c[1]), brief(rr));
+    });
+
+    // ---- Required keyword coverage
+    var cov = [["mă doare capul", "Neurology"], ["amețeli", "Neurology"], ["erupții", "Dermatology"], ["mâncărime", "Dermatology"],
+      ["palpitații", "Cardiology"], ["durere în piept", "Cardiology"], ["durere de spate", "Orthopedics"], ["genunchi", "Orthopedics"],
+      ["febră", "Family Medicine"], ["tuse", "Pulmonology"], ["durere în gât", "ENT (Otorhinolaryngology)"],
+      ["menstruație", "Obstetrics & Gynecology"], ["sarcină", "Obstetrics & Gynecology"], ["anxietate", "Psychiatry"],
+      ["insomnie", "Psychiatry"], ["dureri de spate", "Orthopedics"], ["mă doare spatele", "Orthopedics"],
+      ["pieptul mă doare", null], ["îmi întârzie menstruația", "Obstetrics & Gynecology"], ["sunt însărcinată", "Obstetrics & Gynecology"],
+      ["mă doare gâtul", "ENT (Otorhinolaryngology)"], ["am ochii roșii", "Ophthalmology"], ["usturime la urinare", "Urology"],
+      ["mă doare burta", "Gastroenterology"], ["probleme cu tiroida", "Endocrinology"]];
+    cov.forEach(function (c) {
+      var rr = A(c[0]);
+      if (c[1] === null) ok("'" + c[0] + "' -> some suggestion", rr.suggestions.length > 0 || rr.redFlag, brief(rr));
+      else ok("'" + c[0] + "' -> " + c[1] + " first", first(rr) === c[1] && !rr.redFlag, brief(rr));
+    });
+
+    // ---- Matching details
+    ok("cap does not match capabil", !E.matchesText("sunt capabil", ["cap"]));
+    ok("eruptii matches eruptie", E.matchesText("o eruptie", ["erupții"]));
+    ok("durere matches dureri", E.matchesText("dureri de cap", ["durere de cap"]));
+    ok("doar does not match doare", !E.matchesText("doar azi", ["doare"]));
+    ok("alerg does not match alergie", !E.matchesText("am alergie", ["când alerg"]) && !E.matchesText("cand alerg", ["alergie"]));
+    ok("1 gap word allowed", E.matchesText("durere puternica in piept", ["durere în piept"]));
+
+    // ---- normalize / language
+    ok("normalize diacritics + cedilla + uppercase",
+      E.normalize("ĂÂÎȘȚ ăâîșț ŞŢ şţ  Mă doare  CAPUL!!!") === "aaist aaist st st ma doare capul", JSON.stringify(E.normalize("ĂÂÎȘȚ ăâîșț ŞŢ şţ  Mă doare  CAPUL!!!")));
+    ok("normalize NFD combining marks", E.normalize("ășé") === "ase", E.normalize("ășé"));
+    ok("normalize apostrophe", E.normalize("I can't") === "i cant");
+    ok("detectLanguage ro (diacritics)", E.detectLanguage("mă doare") === "ro");
+    ok("detectLanguage ro (no diacritics)", E.detectLanguage("ma doare capul de 2 zile") === "ro");
+    ok("detectLanguage en", E.detectLanguage("my head hurts") === "en");
+    ok("detectLanguage default en", E.detectLanguage("") === "en");
+
+    // ---- Follow-ups, answers, urgency
+    r = A("dureri de cap frecvente și amețeli");
+    ok("ambiguous who -> who follow-up", r.followUp && r.followUp.id === "who" && r.followUp.options.length === 2, brief(r));
+    ok("who options RO labels", /Este pentru dumneavoastră sau pentru un copil\?$/.test(r.followUp.question) && /* updated: natural question wording */ r.followUp.options[1].label === "Copil sub 18 ani", JSON.stringify(r.followUp));
+    r = A("dureri de cap frecvente și amețeli", { who: "adult" });
+    ok("after who -> duration follow-up", r.followUp && r.followUp.id === "duration" && r.followUp.options.length === 3, brief(r));
+    r = A("dureri de cap frecvente și amețeli", { who: "adult", duration: "gt2w" });
+    ok("gt2w -> urgency note, specialty unchanged", first(r) === "Neurology" && !!r.urgencyNote, brief(r));
+    ok("then severity follow-up", r.followUp && r.followUp.id === "severity", brief(r));
+    r = A("dureri de cap frecvente și amețeli", { who: "adult", duration: "gt2w", severity: "severe" });
+    ok("budget exhausted -> no follow-up; severe note", r.followUp === null && /puternic/.test(r.urgencyNote), brief(r));
+    r = A("dureri de cap frecvente", { who: "child" });
+    ok("answers.who=child -> Pediatrics first", first(r) === "Pediatrics", brief(r));
+    r = A("my child hurt his knee playing football");
+    ok("child knee -> Pediatrics then Pediatric Orthopedics", first(r) === "Pediatrics" && r.suggestions.some(function (s) { return s.specialty === "Pediatric Orthopedics"; }), brief(r));
+    r = A("My child is sick");
+    ok("Child is sick -> Pediatrics, no clarify", first(r) === "Pediatrics" && (!r.followUp || r.followUp.id !== "clarify"), brief(r));
+    ok("disclaimer en", A("rash").disclaimer === "This is guidance, not a medical opinion. If you are worried or it gets worse, seek urgent care.");
+    ok("disclaimer ro", /orientare/.test(A("am erupții").disclaimer));
+
+    // ---- Remap / fallback
+    r = E.analyze("am anxietate și stres", {}, ["Family Medicine", "Dermatology"]);
+    ok("Psychiatry missing -> Family Medicine with note", first(r) === "Family Medicine" && r.suggestions[0].originalSpecialty && /Family Medicine/.test(r.suggestions[0].note), brief(r) + JSON.stringify(r.suggestions[0]));
+    r = A("am o problemă cu un dinte");
+    ok("Dentistry -> remapped to Family Medicine with note", first(r) === "Family Medicine" && r.suggestions[0].originalSpecialty === "Dentistry" && !!r.suggestions[0].note, JSON.stringify(r.suggestions));
+    r = A("I have allergies");
+    ok("Allergology remapped", r.suggestions.length && r.suggestions[0].originalSpecialty === "Allergology", JSON.stringify(r.suggestions));
+
+    // ---- Quick replies
+    var qExpect = { skin: "Dermatology", headache: "Neurology", chest: "Cardiology", child: "Pediatrics", joint: null, women: "Obstetrics & Gynecology" };
+    E.QUICK_REPLIES.forEach(function (q) {
+      ["en", "ro"].forEach(function (lang) {
+        var rr = A(q.text[lang]);
+        var exp = qExpect[q.id];
+        var good = exp ? first(rr) === exp : (first(rr) === "Orthopedics" || first(rr) === "Rheumatology");
+        ok("quick reply " + q.id + "/" + lang + " -> " + (exp || "Orthopedics/Rheumatology") + " (lang " + rr.lang + ")", good && rr.lang === lang && !rr.redFlag, brief(rr));
+      });
+    });
+    ok("WELCOME/EMERGENCY en+ro", E.WELCOME.en && E.WELCOME.ro && E.EMERGENCY.en === "This may be an emergency. Call 112 now." && E.EMERGENCY.ro);
+    ok("USE_LLM false + LLM_NOTICE", E.USE_LLM === false && E.LLM_NOTICE === "Your message is sent to an AI service.");
+
+    // ---- Every suggestion specialty exists in the dataset (broad sweep)
+    var probes = cov.map(function (c) { return c[0]; }).concat(["rash", "knee pain", "back pain", "cough and fever", "stomach ache",
+      "I am pregnant", "my period is late", "anxiety", "insomnia", "palpitations", "blurry vision", "kidney stones", "toothache",
+      "allergy", "hair loss", "thyroid", "hernia", "ear pain", "sore throat", "I feel tired", "copilul meu tușește",
+      "bebelușul are febră", "nu pot dormi de o lună", "am o aluniță", "wheezing", "smoker cough"]);
+    var bad = [];
+    probes.forEach(function (p) {
+      [{}, { clarifyCount: 1 }, { who: "child" }].forEach(function (ans) {
+        A(p, ans).suggestions.forEach(function (s) { if (AVAIL.indexOf(s.specialty) < 0) bad.push(p + " => " + s.specialty); });
+      });
+    });
+    ok("every suggestion specialty exists in the dataset (" + probes.length * 3 + " runs)", bad.length === 0, bad.join("; "));
+
+    // ---- Rule counts
+    var specs = {}, kwCount = 0;
+    window.SYMPTOM_RULES.forEach(function (rule) { specs[rule.specialty] = 1; kwCount += rule.keywords.length; });
+    var inData = Object.keys(specs).filter(function (s) { return AVAIL.indexOf(s) >= 0; });
+    ok(">= 12 specialties in dataset covered (" + inData.length + ", " + Object.keys(specs).length + " total)", inData.length >= 12);
+    ok(">= 60 rule entries (" + window.SYMPTOM_RULES.length + ")", window.SYMPTOM_RULES.length >= 60);
+    ok(">= 60 keyword strings (" + kwCount + ")", kwCount >= 60);
+    var banned = /migr|infec|asthma|astm|diabet|allerg(?!ist)|alerg(?!olog)|hernia|hernie|eczem|psoria|depres|cancer|tumor|tumo|stroke|accident vascular|anafila|anaphyla|reflux|sinuzit|sinusit|ulcer|gastrit|virus|viroz|pneumon|bronsit|bronchit|grip|flu\b|hipertens|hypertens|arthrit|artrit|epilep/i;
+    var badReasons = [];
+    function chk(obj, where) { ["en", "ro"].forEach(function (l) { if (obj && banned.test(obj[l])) badReasons.push(where + "/" + l + ": " + obj[l]); }); }
+    window.SYMPTOM_RULES.forEach(function (rule) { chk(rule.reason, rule.specialty); chk(rule.urgent, rule.specialty + " urgent"); });
+    window.RED_FLAG_RULES.forEach(function (rule) { chk(rule.reason, rule.id); });
+    ok("no reason text names a disease/cause", badReasons.length === 0, badReasons.join(" | "));
+    ok("red flag rules present (" + window.RED_FLAG_RULES.length + ")", window.RED_FLAG_RULES.length >= 10);
+    var badRules = window.SYMPTOM_RULES.filter(function (rule) { return !rule.reason || !rule.reason.en || !rule.reason.ro || rule.weight < 1 || rule.weight > 5; });
+    ok("every rule has en+ro reason and weight 1-5", badRules.length === 0, JSON.stringify(badRules.map(function (x) { return x.specialty; })));
+    ok("namespace not clobbered by engine", typeof window.MedIndex === "object");
+
+    // ---- Confidence score 0-100 (Low < 40, Medium 40-69, High >= 70); the full battery is in .dev/tests/engine-jsc.js
+    function cTop(t, ans) { return A(t, ans).suggestions[0]; }
+    var cd1 = cTop("am erupții pe piele"), cd2 = cTop("am erupții pe piele care mă mănâncă și se descuamează");
+    ok("conf: rash Medium+, rash + itch + peeling High and higher", cd1.confidenceScore >= 40 && cd2.confidence === "High" && cd2.confidenceScore > cd1.confidenceScore,
+      cd1.confidenceScore + " -> " + cd2.confidenceScore);
+    ok("conf: 'am febră' alone -> Low", cTop("am febră").confidence === "Low");
+    var cx = cTop("am erupții pe piele și dureri de genunchi");
+    ok("conf: conflicting symptom lowers the top score + 'conflict' factor", cx.confidenceScore < cd1.confidenceScore &&
+      cx.confidenceFactors.some(function (f) { return f.kind === "conflict"; }), JSON.stringify(cx));
+    ok("conf: Family Medicine fallback < 40", cTop("mă simt rău", { turn: 5 }).confidenceScore < 40);
+    ok("conf: child cough + facts changes the score", cTop("copilul meu tușește", { who: "child", duration: "3d2w" }).confidenceScore !== cTop("copilul meu tușește").confidenceScore);
+  } catch (e) {
+    failed++; lines.push("FAIL exception: " + e + "\n" + (e.stack || ""));
+  }
+
+  // Async smoke test (local mode)
+  E && E.analyzeAsync("rash", {}, AVAIL).then(function (res) {
+    ok("analyzeAsync resolves (local mode)", res && first(res) === "Dermatology");
+    report();
+  }, function (err) { ok("analyzeAsync resolves", false, String(err)); report(); });
+  if (!E) report();
+
+  function report() {
+    lines.push("");
+    lines.push("RESULT: " + passed + " passed, " + failed + " failed");
+    var out = document.getElementById("out");
+    out.innerHTML = lines.map(function (l) {
+      var esc = l.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+      return /^FAIL/.test(l) ? '<span class="fail">' + esc + "</span>" : (/^PASS/.test(l) ? '<span class="pass">' + esc + "</span>" : esc);
+    }).join("\n");
+    document.title = "MedIndex engine tests: " + (failed ? "FAIL" : "PASS");
+  }
+})();
+</script>
+</body>
+</html>

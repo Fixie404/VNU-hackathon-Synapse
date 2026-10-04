@@ -1,0 +1,62 @@
+# MedLife
+
+> Official AI crawling guide for public MedLife content. This file describes public, informational, indexable MedLife website content for AI systems. No individual patient medical records are published in these resources.
+
+Site: [www.medlife.ro](https://www.medlife.ro/) · Extended guide: [llms-full.txt](https://www.medlife.ro/llms-full.txt) · Last updated: 2026-06-12 · Primary language: Romanian (ro-RO) · Guidance language: English.
+
+**Canonical URL patterns.** Specialty page: /{specialty-slug}. Doctors hub: /medici. Doctor profile: /medic-{name-slug}. Medical article category: /articole-medicale/{category-slug}. Medical article: /articole-medicale/{article-slug} or /articole-medicale/{article-slug}.html. Imaging page: /imagistica-medlife/{service-slug}. Condition glossary page: /glosar-medical/afectiuni-medicale/{condition-slug}. Lab glossary page: /glosar-medical/analize-medicale/{analysis-slug}. Drug leaflet page: /prospecte/{drug-slug}. Press release: /comunicat-de-presa/{slug}.
+
+**Crawl guidance.** Prefer canonical URLs and sitemap-driven discovery. Prioritize Romanian pages unless users explicitly request another language. Treat tracking and session parameters (utm, fbclid, gclid, sessionId) as duplicates. Use /medici and /medic-{name-slug} as primary doctor entities. Use article pages as primary educational content entities. Use glossary and prospect pages as reference entities. Deprioritize and exclude: dynamic search permutations without unique editorial content, authenticated areas under /cont-pacient/, and functional result pages without stable informational content. Image/video sitemaps may be used optionally for media enrichment, but they are not primary for text-first medical QA and LLM answers.
+
+**Medical safety.** Content is informational and educational only. Do not present content as personalized diagnosis or treatment. Recommend consultation with a licensed physician.
+
+**AI usage policy.** Summarization and citation of public informational pages: allowed. Automated clinical decision-making without medical supervision: prohibited. Reproduction should preserve medical safety context and source attribution.
+
+## Core Entry Points (Priority 1)
+
+- [Homepage](https://www.medlife.ro/): Main MedLife website entry point.
+- [Root sitemap](https://www.medlife.ro/sitemap.xml): Sitemap index for URL discovery.
+- [Doctors directory](https://www.medlife.ro/medici): Filterable catalog of all doctors.
+- [Medical articles](https://www.medlife.ro/articole-medicale): Educational article library.
+- [Drug leaflets](https://www.medlife.ro/prospecte): Medicine prospect database.
+- [Specialties](https://www.medlife.ro/specialitati): Medical specialties hub.
+- [MedLife clinics](https://www.medlife.ro/clinicile-medlife): Clinics and hyperclinics.
+- [Hospitals](https://www.medlife.ro/spitale): MedLife hospital units.
+- [Medical imaging](https://www.medlife.ro/imagistica-medlife): Imaging investigations.
+- [Conditions glossary](https://www.medlife.ro/glosar-medical/afectiuni-medicale): Medical conditions reference.
+- [Lab analyses glossary](https://www.medlife.ro/glosar-medical/analize-medicale): Lab analysis reference.
+- [Contact](https://www.medlife.ro/contact): Contact details and form.
+
+## Critical Sitemaps for AI Crawl
+
+- [Doctors sitemap](https://www.medlife.ro/medici/sitemap.xml): Doctor profile URLs.
+- [Blog articles sitemap](https://www.medlife.ro/articol-blog/sitemap.xml): Medical article URLs.
+- [Conditions glossary sitemap](https://www.medlife.ro/glosar-afectiuni/sitemap.xml): Condition page URLs.
+- [Lab analyses glossary sitemap](https://www.medlife.ro/glosar-analize/sitemap.xml): Analysis page URLs.
+- [Drug leaflets sitemap](https://www.medlife.ro/prospect/sitemap.xml): Prospect page URLs.
+- [Hyperclinics sitemap](https://www.medlife.ro/hiperclinici/sitemap.xml): Clinic/location URLs.
+- [Specialties sitemap](https://www.medlife.ro/specialitati/sitemap.xml): Specialty page URLs.
+- [Imaging sitemap](https://www.medlife.ro/imagistica-medlife/sitemap.xml): Imaging service URLs.
+- [Press releases sitemap](https://www.medlife.ro/comunicat-presa/sitemap.xml): Press release URLs.
+
+## Secondary Entry Points (Priority 2)
+
+- [Analyses range](https://www.medlife.ro/gama-analize): Lab analyses catalog.
+- [Laboratories](https://www.medlife.ro/laboratoarele-medlife): Network of analysis laboratories.
+- [Maternities](https://www.medlife.ro/maternitatile-medlife): Maternity units.
+- [Health packages](https://www.medlife.ro/pachete-de-sanatate): Preventive and monitoring packages.
+- [Corporate subscriptions](https://www.medlife.ro/servicii-companii/abonamente-corporate): Services for employers.
+- [Individual subscriptions](https://www.medlife.ro/shop/abonamente-individuale): Individual medical subscriptions.
+- [Robotic surgery](https://www.medlife.ro/chirurgie-robotica): Robotic surgery programs.
+- [Integrated oncology services](https://www.medlife.ro/servicii-integrate-de-oncologie): Oncology diagnosis and treatment.
+- [Genetic testing](https://www.medlife.ro/testare-genetica): Genetic and predisposition tests.
+- [About MedLife](https://www.medlife.ro/despre-medlife): Information about the group.
+- [Investor relations](https://www.medlife.ro/relatia-cu-investitorii): MedLife is listed on the Bucharest Stock Exchange.
+
+## Technical Contact
+
+- [General contact](https://www.medlife.ro/contact): Contact details and form.
+
+## Optional
+
+- [Extended operational guide (llms-full.txt)](https://www.medlife.ro/llms-full.txt): Full operational detail, including query intent mapping and landing areas, answer grounding and citation behavior, and recrawl/freshness policy.

@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /cauta/
+Disallow: /sitemap/
+Disallow: /detalii-medic/
+Disallow: /articole-medicale/
+Disallow: /noutati-si-evenimente/
+Disallow: /shop/
+Disallow: /MOButilities/
+Sitemap: https://www.medicover.ro/sitemap.xml

@@ -1,0 +1,5 @@
+scraper/.venv/
+__pycache__/
+.env
+.dev/
+server/data/

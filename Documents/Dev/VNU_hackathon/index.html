@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MedIndex — Find the right doctor in Bucharest</title>
+  <meta name="description" content="Compare private doctors in Bucharest by specialty, real consultation price, distance, CNAS coverage and seniority. Ask MedIndex Assistant which specialist fits your symptoms.">
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body class="mx-page">
+  <a class="mx-skip" href="#main">Skip to content</a>
+
+  <header id="site-header" class="mx-header">
+    <div class="mx-header-inner">
+      <a class="mx-brand" href="index.html">MedIndex</a>
+      <nav aria-label="Main"><a href="index.html">Home</a> · <a href="doctors.html">Find Doctors</a> · <a href="premium.html">Premium</a> · <a href="account.html">Account</a></nav>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <!-- Hero -->
+    <section class="mx-hero" aria-labelledby="hero-title">
+      <div class="mx-wrap mx-hero-grid">
+        <div>
+          <span class="mx-eyebrow"><span class="mx-eyebrow-dot" aria-hidden="true"></span>Private clinics in Bucharest, side by side</span>
+          <h1 id="hero-title">Find the right doctor in Bucharest — <span class="mx-grad">with real prices</span></h1>
+          <p class="mx-hero-sub">Compare doctors by specialty, consultation price, distance, CNAS coverage and seniority. Not sure who to see? Ask MedIndex Assistant first.</p>
+          <div class="mx-hero-ctas">
+            <a class="mx-btn mx-btn-primary" href="doctors.html">
+              Find a doctor
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="mx-btn mx-btn-secondary" href="doctors.html#assistant">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 10h8M8 13h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Ask MedIndex Assistant
+            </a>
+          </div>
+          <p class="mx-hero-note">Free to search. No account needed.</p>
+        </div>
+
+        <div class="mx-preview" id="hero-preview" hidden>
+          <p class="mx-preview-label">A real listing from the directory</p>
+          <div class="mx-preview-card">
+            <div class="mx-preview-top">
+              <span class="mx-preview-initials" id="pv-initials" aria-hidden="true"></span>
+              <div>
+                <p class="mx-preview-name" id="pv-name"></p>
+                <p class="mx-preview-spec" id="pv-spec"></p>
+              </div>
+            </div>
+            <ul class="mx-preview-rows">
+              <li><span>Network</span><span id="pv-network"></span></li>
+              <li><span>Clinic</span><span id="pv-clinic"></span></li>
+              <li><span>CNAS</span><span id="pv-cnas"></span></li>
+              <li><span>Consultation</span><span class="mx-preview-price" id="pv-price"></span></li>
+            </ul>
+          </div>
+          <div class="mx-preview-chat" aria-label="Example of the assistant">
+            <p class="mx-bubble mx-bubble-user">I have had a skin rash for a week. Who should I see?</p>
+            <p class="mx-bubble mx-bubble-bot">I have a few quick questions first. Is this for you or for a child under 18?</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Live stats from data/doctors.js -->
+    <section class="mx-stats" id="stats" aria-label="Directory at a glance" hidden>
+      <div class="mx-wrap">
+        <ul class="mx-stats-list">
+          <li><span class="mx-stat-value" id="st-doctors"></span><span class="mx-stat-label">doctors listed</span></li>
+          <li><span class="mx-stat-value" id="st-networks"></span><span class="mx-stat-label">private hospital networks</span></li>
+          <li><span class="mx-stat-value" id="st-specialties"></span><span class="mx-stat-label">specialties</span></li>
+          <li><span class="mx-stat-value" id="st-prices"></span><span class="mx-stat-label">consultation price range</span></li>
+        </ul>
+        <p class="mx-stats-src" id="st-source"></p>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="mx-section" aria-labelledby="features-title">
+      <div class="mx-wrap">
+        <div class="mx-section-head">
+          <p class="mx-kicker">Why MedIndex</p>
+          <h2 id="features-title">Everything you need to choose, in one place</h2>
+          <p class="mx-section-lead">No more opening four clinic websites in four tabs. MedIndex puts the facts that matter next to each other.</p>
+        </div>
+        <ul class="mx-cards" role="list">
+          <li class="mx-card">
+            <span class="mx-icon"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M3 12V4h8l10 10-8 8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="7.5" cy="8.5" r="1.6" fill="currentColor"/></svg></span>
+            <h3>Real prices, with sources</h3>
+            <p>Consultation prices come from each network's public price page, with a link to the source and the date it was collected.</p>
+          </li>
+          <li class="mx-card">
+            <span class="mx-icon"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg></span>
+            <h3>Distance from you</h3>
+            <p>Share your location or pick an area of Bucharest and sort clinics by how far away they are.</p>
+          </li>
+          <li class="mx-card">
+            <span class="mx-icon"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <h3>CNAS coverage</h3>
+            <p>See which services the clinic says can be covered by Romania's state health insurance, usually with a referral.</p>
+          </li>
+          <li class="mx-card">
+            <span class="mx-icon"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M12 3l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.4 6.8 19.2l1-5.9L3.5 9.2l5.9-.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
+            <h3>Seniority at a glance</h3>
+            <p>Filter or sort by medical rank, from specialist physician to senior consultant and primary physician.</p>
+          </li>
+          <li class="mx-card">
+            <span class="mx-icon mx-icon-alert"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 8v4M12 14.5v.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+            <h3>AI assistant with 112 safety</h3>
+            <p>Describe your symptoms and get a suggested type of specialist. Emergency signs are caught first and you are told to call 112.</p>
+          </li>
+          <li class="mx-card">
+            <span class="mx-icon"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M5 4h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-7l-5 4v-4H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <h3>Patient reviews</h3>
+            <p>Rate doctors you have seen and read what other patients wrote, so the next person can choose with more confidence.</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- How it works (dark band) -->
+    <section class="mx-section mx-dark" aria-labelledby="how-title">
+      <div class="mx-wrap">
+        <div class="mx-section-head">
+          <p class="mx-kicker">How it works</p>
+          <h2 id="how-title">From "something's wrong" to a booked visit in three steps</h2>
+          <p class="mx-section-lead">MedIndex helps you choose. Booking always happens directly with the clinic.</p>
+        </div>
+        <ol class="mx-steps">
+          <li class="mx-step">
+            <span class="mx-step-num" aria-hidden="true">1</span>
+            <h3>Describe or search</h3>
+            <p>Search a specialty or a doctor's name, or tell MedIndex Assistant what is bothering you.</p>
+          </li>
+          <li class="mx-step">
+            <span class="mx-step-num" aria-hidden="true">2</span>
+            <h3>Compare the facts</h3>
+            <p>Filter by network and CNAS, then sort by price, distance or seniority to find your best fit.</p>
+          </li>
+          <li class="mx-step">
+            <span class="mx-step-num" aria-hidden="true">3</span>
+            <h3>Book with the clinic</h3>
+            <p>Open the doctor's official profile, confirm the current price and book directly with the clinic.</p>
+          </li>
+        </ol>
+        <div class="mx-dark-cta">
+          <a class="mx-btn mx-btn-light" href="doctors.html">Find a doctor</a>
+          <a class="mx-btn mx-btn-outline-light" href="doctors.html#assistant">Ask MedIndex Assistant</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Premium teaser -->
+    <section class="mx-section" aria-labelledby="plans-title">
+      <div class="mx-wrap">
+        <div class="mx-section-head">
+          <p class="mx-kicker">Plans</p>
+          <h2 id="plans-title">Free for everyone. Premium when you want more.</h2>
+          <p class="mx-section-lead">Searching, the assistant and ratings are free. Premium adds every written review and a secure place for your medical files.</p>
+        </div>
+        <div class="mx-plans">
+          <article class="mx-plan" aria-labelledby="tp-reg">
+            <h3 id="tp-reg">Regular</h3>
+            <p class="mx-plan-price"><span class="mx-plan-amount">Free</span></p>
+            <ul class="mx-plan-list">
+              <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Search and filters</li>
+              <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>MedIndex Assistant chatbot</li>
+              <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Ratings and leaving reviews</li>
+              <li class="mx-limited"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>Read up to 5 written reviews per doctor</li>
+            </ul>
+            <a class="mx-btn mx-btn-secondary" href="doctors.html">Start searching</a>
+          </article>
+          <article class="mx-plan mx-plan-premium" aria-labelledby="tp-prem">
+            <span class="mx-plan-tag">Premium</span>
+            <h3 id="tp-prem">Premium</h3>
+            <p class="mx-plan-price"><span class="mx-plan-amount">$5.99</span><span class="mx-plan-per">/ month</span></p>
+            <p class="mx-plan-alt">or $65.99 / year <span class="mx-save" id="tp-save"></span></p>
+            <ul class="mx-plan-list">
+              <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Everything in Regular</li>
+              <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>All written reviews for every doctor</li>
+              <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>5 GB Secure Medical Cloud <span class="mx-demo-tag">(demo: only file details are saved, not the files themselves)</span></span></li>
+              <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Chatbot history saved to your cloud</li>
+            </ul>
+            <a class="mx-btn mx-btn-primary" href="premium.html">See Premium</a>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="mx-footer">
+    <div class="mx-wrap mx-footer-inner">
+      <a class="mx-brand" href="index.html" aria-label="MedIndex home">
+        <svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true" focusable="false"><rect x="1" y="1" width="38" height="38" rx="10" fill="currentColor"/><path d="M16 9h8v7h7v8h-7v7h-8v-7H9v-8h7z" fill="#0b1630"/></svg>
+        <span>MedIndex</span>
+      </a>
+      <nav aria-label="Footer">
+        <ul class="mx-footer-links">
+          <li><a href="doctors.html">Find Doctors</a></li>
+          <li><a href="doctors.html#assistant">AI Assistant</a></li>
+          <li><a href="premium.html">Premium</a></li>
+          <li><a href="account.html">Account</a></li>
+        </ul>
+      </nav>
+      <div class="mx-footer-legal">
+        <p><strong>About the data.</strong> Data collected from public pages of each network. Prices may change; confirm with the clinic before booking.</p>
+        <p><strong>About the AI.</strong> MedIndex Assistant gives general health information, not a diagnosis, and its advice may be wrong. It never replaces a doctor. In an emergency, call 112.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="data/doctors.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/nav.js" defer></script>
+  <script src="js/home.js" defer></script>
+</body>
+</html>

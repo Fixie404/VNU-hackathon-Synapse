@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MedIndex ranking tests</title>
+<style>
+  body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; }
+  .pass { color: #0a7d32; } .fail { color: #b00020; font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>MedIndex ranking + reviews tests</h1>
+<pre id="out"></pre>
+<script src="../data/doctors.js"></script>
+<script src="reviews.js"></script>
+<script src="ranking.js"></script>
+<script>
+(function () {
+  "use strict";
+  var out = document.getElementById("out");
+  var passed = 0, failed = 0;
+  function log(cls, msg) {
+    var span = document.createElement("span");
+    span.className = cls;
+    span.textContent = msg + "\n";
+    out.appendChild(span);
+  }
+  function assert(cond, name, detail) {
+    if (cond) { passed++; log("pass", "PASS " + name); }
+    else { failed++; log("fail", "FAIL " + name + (detail ? " :: " + detail : "")); }
+  }
+  function test(name, fn) {
+    try { fn(); } catch (e) { failed++; log("fail", "FAIL " + name + " threw " + (e && e.stack || e)); }
+  }
+  function deepFreeze(o) {
+    if (o && typeof o === "object" && !Object.isFrozen(o)) {
+      Object.freeze(o);
+      Object.getOwnPropertyNames(o).forEach(function (k) { deepFreeze(o[k]); });
+    }
+    return o;
+  }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  var R = window.MedIndex.ranking;
+  var V = window.MedIndex.reviews;
+  var SENIOR = "Senior Consultant / Primary Physician";
+  var SPEC = "Specialist Physician";
+
+  function doc(id, extra) {
+    var d = { id: id, name: "Test Doctor " + id, hospital: "TestNet", specialty: "Cardiology",
+              medicalRank: SPEC, priceRON: 300, lat: 44.43, lng: 26.1, acceptsCNAS: false };
+    for (var k in extra) d[k] = extra[k];
+    return d;
+  }
+  function distFromMap(map) { return function (d) { return d.id in map ? map[d.id] : null; }; }
+  var cardio = [{ specialty: "Cardiology", confidence: "High" }];
+
+  // Reviews are server-backed: a synchronous in-memory MedIndexAPI mock stands in for the server.
+  var mockDb = { "90001": [] }, mockUser = { id: 1 };
+  function mockSummary() {
+    var r = {};
+    Object.keys(mockDb).forEach(function (id) {
+      var l = mockDb[id]; if (!l.length) return;
+      r[id] = { avg: l.reduce(function (s, x) { return s + x.stars; }, 0) / l.length, count: l.length };
+    });
+    return { ratings: r };
+  }
+  window.MedIndexAPI = { reviews: {
+    summary: function (cb) { cb(null, mockSummary()); },
+    list: function (id, cb) { var l = mockDb[id] || []; cb(null, { doctorId: id, total: l.length, shown: l.slice(0, 5), limited: l.length > 5, limit: 5,
+      mine: l.filter(function (x) { return x.userId === mockUser.id; })[0] || null }); },
+    create: function (id, stars, comment, cb) {
+      if (!mockUser) return cb({ status: 401, error: "auth" });
+      var l = mockDb[id] = mockDb[id] || [];
+      if (l.some(function (x) { return x.userId === mockUser.id; })) return cb({ status: 409, error: "dup" });
+      var rv = { id: l.length + 1, stars: stars, comment: comment, createdAt: new Date().toISOString(), author: "T", userId: mockUser.id };
+      l.push(rv); cb(null, { review: rv });
+    }
+  } };
+  V._reset(); V.load();
+
+  test("data loaded", function () {
+    assert(Array.isArray(window.DOCTORS) && window.DOCTORS.length > 0, "window.DOCTORS loaded (" + (window.DOCTORS || []).length + ")");
+  });
+
+  test("presets", function () {
+    Object.keys(R.WEIGHT_PRESETS).forEach(function (k) {
+      var p = R.WEIGHT_PRESETS[k];
+      var sum = p.match + p.rating + p.seniority + p.proximity + p.price;
+      assert(sum === 100 && p.label.en && p.label.ro && p.match > 0 && p.rating > 0 && p.seniority > 0 && p.proximity > 0 && p.price > 0,
+        "preset " + k + " sums to 100, all components > 0, en+ro labels", "sum=" + sum);
+    });
+  });
+
+  test("computeStats / bayesian", function () {
+    var s0 = R.computeStats([doc(1, {}), doc(2, {})]);
+    assert(s0.C === 4.0 && s0.m === 10, "computeStats: no ratings -> C=4.0, m=10");
+    var s = R.computeStats([doc(1, { ratingValue: 4, ratingCount: 3 }), doc(2, { ratingValue: 5, ratingCount: 1 }), doc(3, {})]);
+    // anchored prior: (n*mean + 10*4.0)/(n + 10) with n=2, mean=4.5 -> 49/12
+    assert(Math.abs(s.C - 49 / 12) < 1e-9, "computeStats: anchored prior over rated only (n*mean+10*4)/(n+10)", "C=" + s.C);
+    assert(R.bayesianRating(doc(3, {}), s) === s.C, "bayesian: unrated -> C exactly");
+    var b = R.bayesianRating(doc(1, { ratingValue: 5, ratingCount: 10 }), { C: 4, m: 10 });
+    assert(Math.abs(b - 4.5) < 1e-9, "bayesian formula (v=m -> midpoint)", "b=" + b);
+  });
+
+  // 7. Small-sample 5.0 vs well-reviewed 4.7
+  test("7", function () {
+    var docs = [
+      doc("A", { ratingValue: 5.0, ratingCount: 1 }),
+      doc("B", { ratingValue: 4.7, ratingCount: 40 }),
+      doc("o1", { ratingValue: 4.0, ratingCount: 12, specialty: "Neurology" }),
+      doc("o2", { ratingValue: 3.9, ratingCount: 30, specialty: "Neurology" }),
+      doc("o3", { ratingValue: 4.1, ratingCount: 8, specialty: "Neurology" }),
+      doc("o4", { ratingValue: 4.0, ratingCount: 20, specialty: "Neurology" })
+    ];
+    var ctx = { targetSpecialties: cardio, distanceKm: distFromMap({ A: 3, B: 3, o1: 5, o2: 6, o3: 7, o4: 8 }) };
+    var res = R.rankDoctors(docs, ctx, "best");
+    var ia = res.findIndex(function (r) { return r.doctor.id === "A"; });
+    var ib = res.findIndex(function (r) { return r.doctor.id === "B"; });
+    assert(ib < ia, "7: B (40 x 4.7) ranks above A (1 x 5.0)", "A#" + (ia + 1) + " B#" + (ib + 1) + " bayes A=" + res[ia].bayesian.toFixed(3) + " B=" + res[ib].bayesian.toFixed(3));
+  });
+
+  // Anchored prior: few reviews can't zero or neutralize unrated doctors.
+  test("prior anchoring", function () {
+    function ratingPts(r) { return r.components.filter(function (c) { return c.key === "rating"; })[0].points; }
+    var res = R.rankDoctors([doc("x", { ratingValue: 1, ratingCount: 1 }), doc("u1", {}), doc("u2", {})], { targetSpecialties: cardio }, "best");
+    var unr = res.filter(function (r) { return r.unrated; });
+    assert(unr.length === 2 && unr.every(function (r) { return ratingPts(r) > 0; }),
+      "prior: a single 1-star review elsewhere leaves unrated doctors with rating points > 0",
+      unr.map(function (r) { return ratingPts(r); }).join(","));
+
+    var res2 = R.rankDoctors([doc("u", { name: "Dr. Aaa" }), doc("five", { name: "Dr. Zzz", ratingValue: 5, ratingCount: 1 })], { targetSpecialties: cardio }, "best");
+    var f = res2.filter(function (r) { return r.doctor.id === "five"; })[0];
+    var u = res2.filter(function (r) { return r.doctor.id === "u"; })[0];
+    assert(f.rank < u.rank && f.bayesian > u.bayesian,
+      "prior: a 5-star first review moves that doctor above an otherwise-identical unrated one",
+      "five#" + f.rank + " (" + f.bayesian.toFixed(3) + ") u#" + u.rank + " (" + u.bayesian.toFixed(3) + ")");
+
+    var set = [doc("a", { ratingValue: 5, ratingCount: 20, acceptsCNAS: false }),
+               doc("b", { ratingValue: 2, ratingCount: 20, acceptsCNAS: true }),
+               doc("c", { acceptsCNAS: true })];
+    var cAll = R.rankDoctors(set, {}, "best").filter(function (r) { return r.doctor.id === "c"; })[0].bayesian;
+    var cCnas = R.rankDoctors(set, {}, "best", { cnasOnly: true }).filter(function (r) { return r.doctor.id === "c"; })[0].bayesian;
+    assert(Math.abs(cAll - cCnas) < 1e-12, "prior: C is unchanged by cnasOnly", cAll + " vs " + cCnas);
+  });
+
+  // 8. price vs nearest presets on real doctors with synthetic distances (test-only)
+  test("8", function () {
+    var real = window.DOCTORS.filter(function (d) { return d.specialty === "Cardiology"; });
+    // Synthetic distance only inside this test: deterministic, uncorrelated with price.
+    var dist = {};
+    real.forEach(function (d, i) { dist[d.id] = ((i * 7919) % 97) / 5 + 0.5; });
+    var ctx = { targetSpecialties: cardio, distanceKm: distFromMap(dist) };
+    var byPrice = R.rankDoctors(real, ctx, "price").map(function (r) { return r.doctor.id; });
+    var byNear = R.rankDoctors(real, ctx, "nearest").map(function (r) { return r.doctor.id; });
+    assert(real.length >= 5, "8: realistic candidate set (" + real.length + " real cardiologists)");
+    assert(byPrice.join(",") !== byNear.join(","), "8: 'price' and 'nearest' presets yield different orders",
+      "price top3=" + byPrice.slice(0, 3) + " nearest top3=" + byNear.slice(0, 3));
+    var topP = real.filter(function (d) { return d.id === byPrice[0]; })[0];
+    var minPrice = Math.min.apply(null, real.map(function (d) { return d.priceRON; }));
+    var topN = byNear[0];
+    var minDist = Math.min.apply(null, real.map(function (d) { return dist[d.id]; }));
+    assert(topP.priceRON <= minPrice * 1.25, "8: 'price' top pick is among the cheapest", "top=" + topP.priceRON + " min=" + minPrice);
+    assert(dist[topN] <= minDist + 3, "8: 'nearest' top pick is among the nearest", "top=" + dist[topN] + " min=" + minDist);
+  });
+
+  // 9. Unrated doctor: neutral C, flagged, score > 0, ranked by other factors
+  test("9", function () {
+    var docs = [
+      doc("r1", { ratingValue: 4.6, ratingCount: 25 }),
+      doc("r2", { ratingValue: 3.8, ratingCount: 15 }),
+      doc("u1", { priceRON: 200, medicalRank: SENIOR }),
+      doc("u2", { priceRON: 500 })
+    ];
+    var ctx = { targetSpecialties: cardio, distanceKm: distFromMap({ r1: 2, r2: 4, u1: 1, u2: 9 }) };
+    var stats = R.computeStats(docs);
+    var res = R.rankDoctors(docs, ctx, "best");
+    var u1 = res.filter(function (r) { return r.doctor.id === "u1"; })[0];
+    var u2 = res.filter(function (r) { return r.doctor.id === "u2"; })[0];
+    var rc = u1.components.filter(function (c) { return c.key === "rating"; })[0];
+    var expected = ((stats.C - 1) / 4) * R.WEIGHT_PRESETS.best.rating;
+    assert(u1.unrated === true && u2.unrated === true, "9: unrated doctors flagged unrated: true");
+    assert(Math.abs(rc.points - expected) <= 0.05, "9: unrated rating points = C-based neutral", rc.points + " vs " + expected.toFixed(2));
+    assert(u1.score > 0 && u2.score > 0, "9: unrated score > 0", u1.score + "," + u2.score);
+    assert(u1.rank < u2.rank, "9: unrated doctors ranked by other factors (cheaper/nearer/senior first)");
+    assert(R.explain(u1, "en").indexOf("no reviews yet (neutral)") !== -1, "9: explain marks unrated as neutral", R.explain(u1, "en"));
+  });
+
+  // 10. Reviews
+  test("10", function () {
+    var d = doc(90001, { ratingValue: 4.0, ratingCount: 3, ratingSource: "Regina Maria site", ratingSourceUrl: "https://example.invalid/x" });
+    var before = V.combinedRating(d);
+    assert(before.value === 4.0 && before.count === 3 && before.sources.length === 1 && before.sources[0].label === "Regina Maria site",
+      "10: published-only combinedRating");
+    var none = V.combinedRating(doc(90002, {}));
+    assert(none.value === null && none.count === 0 && none.sources.length === 0, "10: no ratings -> value null, count 0");
+
+    function add(id, stars, comment) { var res = null; var sync = V.addReview(id, stars, comment, function (e, d) { res = e || { ok: true, review: d.review }; }); return res || sync; }
+    var bad1 = add(90001, 0, "x"), bad2 = add(90001, 6, ""), bad3 = add(90001, 4.5, ""), bad4 = add(90001, "5", "");
+    assert(!bad1.ok && !bad2.ok && !bad3.ok && !bad4.ok && bad1.code === "invalid" && !mockDb["90001"].length, "10: invalid stars (0, 6, 4.5, '5') rejected");
+    var long = add(90001, 5, new Array(282).join("a")); // 281 chars
+    assert(!long.ok && !mockDb["90001"].length, "10: 281-char comment REJECTED (documented: reject, not truncate)", long.error);
+    var ok280 = add(90003, 3, "  " + new Array(281).join("b") + "  ");
+    assert(ok280.ok && mockDb["90003"][0].comment.length === 280, "10: 280-char comment (after trim) accepted");
+
+    var fired = 0;
+    var unsub = V.onChange(function () { fired++; });
+    var r = add(90001, 5, "  Very kind.  ");
+    assert(r.ok && mockDb["90001"][0].comment === "Very kind." && V.getReview(90001).stars === 5, "10: addReview ok (server), comment trimmed, own review known");
+    assert(fired >= 1, "10: onChange fired after addReview");
+    unsub();
+    var after = V.combinedRating(d);
+    assert(Math.abs(after.value - (4 * 3 + 5) / 4) < 1e-9 && after.count === 4 && after.sources.length === 2 &&
+      after.sources[1].label === "MedIndex reviews",
+      "10: combinedRating updates immediately (count-weighted)", JSON.stringify(after));
+    var second = add(90001, 1, "again");
+    assert(!second.ok && second.code === "duplicate" && V.getReview(90001).stars === 5, "10: second review for same doctor refused (409)", second.error);
+    mockUser = null;
+    var anon = add(90004, 4, "");
+    assert(!anon.ok && anon.code === "auth", "10: signed out -> 401 -> auth error");
+    mockUser = { id: 1 };
+    var legacy = null;
+    try { legacy = window.localStorage.getItem("medindex.reviews.v1"); } catch (e) {}
+    assert(legacy === null, "10: nothing stored on the device (legacy key removed)");
+    V._reset(); V.load(); // simulate a reload: the summary comes back from the server
+    assert(V.combinedRating(d).count === 4, "10: rating survives a reload (server)");
+
+    var input = deepFreeze([clone(d)]);
+    var wr = V.withRatings(input);
+    var wr2 = V.withRatings(wr);
+    assert(wr !== input && wr[0] !== input[0] && wr[0].ratingCount === 4 && input[0].ratingCount === 3 && wr2[0].ratingCount === 4,
+      "10: withRatings returns new copies, does not mutate, is idempotent");
+  });
+
+  test("purity / cnas / score range / explain", function () {
+    var base = window.DOCTORS.filter(function (d) { return d.specialty === "Cardiology" || d.specialty === "Neurology"; });
+    var input = deepFreeze(clone(base));
+    var snapshot = JSON.stringify(input);
+    var dist = {};
+    input.forEach(function (d, i) { dist[d.id] = (i % 13) + 0.3; });
+    var ctx = deepFreeze({ targetSpecialties: [{ specialty: "Neurology", confidence: "Medium" }, { specialty: "Cardiology", confidence: "Low" }],
+                           distanceKm: distFromMap(dist) });
+    var res = R.rankDoctors(input, ctx, "best");
+    assert(JSON.stringify(input) === snapshot && res !== input && res.length === input.length, "rankDoctors does not mutate frozen input");
+    assert(res.every(function (r) { return Number.isInteger(r.score) && r.score >= 0 && r.score <= 100; }), "score is an integer in 0..100");
+    assert(res.every(function (r, i) { return r.rank === i + 1; }) &&
+      res.every(function (r, i) { return i === 0 || res[i - 1].score >= r.score; }), "ranks sequential, sorted by score desc");
+    var maxErr = 0;
+    res.forEach(function (r) {
+      var s = r.components.reduce(function (a, c) { return a + c.points; }, 0);
+      maxErr = Math.max(maxErr, Math.abs(s - r.score));
+    });
+    assert(maxErr <= 0.75, "explain points sum to score within rounding", "max diff=" + maxErr.toFixed(2));
+    var text = R.explain(res[0], "en");
+    assert(/^Match \+[\d.]+ \/ Rating[^/]*\+[\d.]+ \/ Seniority \+[\d.]+ \/ Distance \+[\d.]+ \/ Price \+[\d.]+$/.test(text), "explain en format", text);
+    var ro = R.explain(res[0], "ro");
+    assert(ro.indexOf("Potrivire +") === 0 && ro.indexOf("Preț +") !== -1, "explain ro labels", ro);
+    assert(res[0].doctor.specialty === "Neurology", "1st suggested specialty outranks 2nd overall");
+
+    var cnas = R.rankDoctors(input, ctx, "best", { cnasOnly: true });
+    var expectCount = input.filter(function (d) { return d.acceptsCNAS === true; }).length;
+    assert(cnas.length === expectCount && cnas.every(function (r) { return r.doctor.acceptsCNAS === true; }),
+      "cnasOnly filters before ranking (" + expectCount + " of " + input.length + ")");
+    if (cnas.length > 1) {
+      var prices = cnas.map(function (r) { return r.doctor.priceRON; });
+      var cheapest = cnas.filter(function (r) { return r.doctor.priceRON === Math.min.apply(null, prices); })[0];
+      var pc = cheapest.components.filter(function (c) { return c.key === "price"; })[0];
+      assert(pc.raw === 1, "cnasOnly: min/max computed on filtered set (cheapest CNAS doctor gets full price points)");
+    }
+
+    // No location -> neutral 0.5 proximity, explain says unknown.
+    var noLoc = R.rankDoctors(input, { targetSpecialties: cardio }, "nearest");
+    var allNeutral = noLoc.every(function (r) {
+      var p = r.components.filter(function (c) { return c.key === "proximity"; })[0];
+      return p.raw === 0.5 && p.note === "distUnknown" && r.distanceKm === null;
+    });
+    assert(allNeutral && R.explain(noLoc[0], "en").indexOf("Distance: unknown (neutral)") !== -1, "no location -> neutral 0.5 + 'Distance: unknown (neutral)'");
+
+    // min==max -> 1
+    var same = R.rankDoctors([doc(1, {}), doc(2, {})], { targetSpecialties: cardio, distanceKm: function () { return 4; } }, "best");
+    assert(same.every(function (r) {
+      return r.components.filter(function (c) { return c.key === "price" || c.key === "proximity"; }).every(function (c) { return c.raw === 1; });
+    }), "min==max -> price and proximity raw = 1");
+
+    // Tie-break: identical scores -> name asc
+    var tie = R.rankDoctors([doc(2, { name: "Dr. Zeta" }), doc(1, { name: "Dr. Alpha" })], { targetSpecialties: cardio }, "best");
+    assert(tie[0].doctor.name === "Dr. Alpha", "tie-break falls through to name asc");
+  });
+
+
+  log(failed ? "fail" : "pass", "\nSUMMARY: " + passed + " passed, " + failed + " failed");
+  document.title = (failed ? "FAIL " : "PASS ") + passed + "/" + (passed + failed);
+})();
+</script>
+</body>
+</html>
