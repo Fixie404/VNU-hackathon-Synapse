@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>MedIndex engine tests</title>
+<title>Synapse engine tests</title>
 <style>body{font:14px/1.4 monospace;padding:16px}.pass{color:#060}.fail{color:#b00;font-weight:bold}</style>
 </head>
 <body>
-<h1>MedIndex engine tests</h1>
+<h1>Synapse engine tests</h1>
 <pre id="out"></pre>
 <script src="../data/doctors.js"></script>
 <script>
@@ -18,7 +18,7 @@
 <script>
 (function () {
   var lines = [], passed = 0, failed = 0;
-  var E = window.MedIndex && window.MedIndex.engine;
+  var E = window.Synapse && window.Synapse.engine;
   var AVAIL = [];
   (window.DOCTORS || []).forEach(function (d) { if (AVAIL.indexOf(d.specialty) < 0) AVAIL.push(d.specialty); });
 
@@ -36,7 +36,7 @@
   var GP = "General Practitioner / Family Doctor";
 
   try {
-    ok("engine exists on window.MedIndex.engine", !!E);
+    ok("engine exists on window.Synapse.engine", !!E);
     ok("dataset loaded", AVAIL.length > 10, AVAIL.length);
 
     // ---- Acceptance tests
@@ -272,7 +272,7 @@
     ok("red flag rules present (" + window.RED_FLAG_RULES.length + ")", window.RED_FLAG_RULES.length >= 10);
     var badRules = window.SYMPTOM_RULES.filter(function (rule) { return !rule.reason || !rule.reason.en || !rule.reason.ro || rule.weight < 1 || rule.weight > 5; });
     ok("every rule has en+ro reason and weight 1-5", badRules.length === 0, JSON.stringify(badRules.map(function (x) { return x.specialty; })));
-    ok("namespace not clobbered by engine", typeof window.MedIndex === "object");
+    ok("namespace not clobbered by engine", typeof window.Synapse === "object");
 
     // ---- Confidence score 0-100 (Low < 40, Medium 40-69, High >= 70); the full battery is in .dev/tests/engine-jsc.js
     function cTop(t, ans) { return A(t, ans).suggestions[0]; }
@@ -304,7 +304,7 @@
       var esc = l.replace(/&/g, "&amp;").replace(/</g, "&lt;");
       return /^FAIL/.test(l) ? '<span class="fail">' + esc + "</span>" : (/^PASS/.test(l) ? '<span class="pass">' + esc + "</span>" : esc);
     }).join("\n");
-    document.title = "MedIndex engine tests: " + (failed ? "FAIL" : "PASS");
+    document.title = "Synapse engine tests: " + (failed ? "FAIL" : "PASS");
   }
 })();
 </script>

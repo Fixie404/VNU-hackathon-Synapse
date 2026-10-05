@@ -1,4 +1,4 @@
-/* MedIndex – shared site header. Renders into <header id="site-header">.
+/* Synapse – shared site header. Renders into <header id="site-header">.
    Exposes window.MedIndexNav = { refresh(), user, offline, ready } and fires
    a "medindex:auth" CustomEvent on document whenever the auth state is known or changes.
    Plain JS, no innerHTML with data (all text via textContent). */
@@ -17,24 +17,28 @@
   var I18N = window.MedIndexI18n || null;
   var NAV_DICT = {
     en: {
-      "nav.main": "Main", "nav.brandHome": "MedIndex home", "nav.menu": "Menu",
+      "nav.main": "Main", "nav.brandHome": "Synapse home", "nav.menu": "Menu",
       "nav.home": "Home", "nav.doctors": "Find Doctors", "nav.assistant": "AI Assistant",
       "nav.premium": "Premium", "nav.account": "Account", "nav.signIn": "Sign in", "nav.signOut": "Sign out",
       "nav.cloud": "Medical Cloud", "nav.upgrade": "Upgrade to Premium", "nav.accountFallback": "Account",
       "nav.acctMenuFor": "Account menu for {name}", "nav.acctMenuForPremium": "Account menu for {name} (Premium)",
       "nav.signInOffline": "Sign in (offline mode)",
+      "nav.signInStatic": "Sign in (browse-only demo)",
+      "nav.staticNote": "This public demo runs in browse-only mode: accounts, reviews, Premium and the AI assistant need the Synapse server.",
       "nav.offlineBefore": "Offline mode: sign-in needs the local server (", "nav.offlineAfter": ").",
       "nav.goAccount": "Go to the account page",
       "lang.label": "Language", "lang.choose": "Language: {name}. Change language",
       "lang.en": "English", "lang.ro": "Română"
     },
     ro: {
-      "nav.main": "Principal", "nav.brandHome": "MedIndex – pagina principală", "nav.menu": "Meniu",
+      "nav.main": "Principal", "nav.brandHome": "Synapse – pagina principală", "nav.menu": "Meniu",
       "nav.home": "Acasă", "nav.doctors": "Caută medici", "nav.assistant": "Asistent AI",
       "nav.premium": "Premium", "nav.account": "Cont", "nav.signIn": "Autentificare", "nav.signOut": "Deconectare",
       "nav.cloud": "Cloud Medical", "nav.upgrade": "Treci la Premium", "nav.accountFallback": "Cont",
       "nav.acctMenuFor": "Meniul contului pentru {name}", "nav.acctMenuForPremium": "Meniul contului pentru {name} (Premium)",
       "nav.signInOffline": "Autentificare (mod offline)",
+      "nav.signInStatic": "Autentificare (demo doar pentru consultare)",
+      "nav.staticNote": "Acest demo public funcționează doar pentru consultare: conturile, recenziile, Premium și asistentul AI au nevoie de serverul Synapse.",
       "nav.offlineBefore": "Mod offline: autentificarea are nevoie de serverul local (", "nav.offlineAfter": ").",
       "nav.goAccount": "Mergi la pagina contului",
       "lang.label": "Limbă", "lang.choose": "Limbă: {name}. Schimbă limba",
@@ -74,12 +78,15 @@
     return s;
   }
   function logo(size) {
-    return svg("0 0 40 40", size, size, [
-      ["rect", { x: 1, y: 1, width: 38, height: 38, rx: 10, fill: "currentColor" }],
-      ["path", { d: "M16 9h8v7h7v8h-7v7h-8v-7H9v-8h7z", fill: "#fff" }],
-      ["circle", { cx: 29.5, cy: 29.5, r: 5, fill: "none", stroke: "#fff", "stroke-width": 2.4 }],
-      ["path", { d: "M33 33l3.2 3.2", stroke: "#fff", "stroke-width": 2.6, "stroke-linecap": "round" }]
-    ]);
+    var img = document.createElement("img");
+    img.className = "mx-logo";
+    img.src = "assets/synapse-logo-64.png";
+    img.srcset = "assets/synapse-logo-64.png 1x, assets/synapse-logo-192.png 2x, assets/synapse-logo-192.png 3x";
+    img.width = size;
+    img.height = size;
+    img.alt = "";
+    img.decoding = "async";
+    return img;
   }
   function caret() {
     var s = svg("0 0 24 24", 16, 16, [["path", { d: "M6 9l6 6 6-6", fill: "none", stroke: "currentColor", "stroke-width": 2.2, "stroke-linecap": "round", "stroke-linejoin": "round" }]]);
@@ -141,7 +148,7 @@
     brand.setAttribute("aria-label", T("nav.brandHome"));
     brand.setAttribute("data-i18n-attr", "aria-label:nav.brandHome");
     brand.appendChild(logo(34));
-    brand.appendChild(el("span", null, "MedIndex"));
+    brand.appendChild(el("span", null, "Synapse"));
     inner.appendChild(brand);
 
     burger = el("button", "mx-burger");
@@ -347,7 +354,13 @@
     m.hidden = !open;
   }
 
+  function isStaticMode() {
+    var A = api();
+    return !FILE_MODE && !!(A && typeof A.isStatic === "function" && A.isStatic());
+  }
+
   function offlineNote() {
+    if (isStaticMode()) return el("p", "mx-menu-note", T("nav.staticNote"));
     var p = el("p", "mx-menu-note");
     p.appendChild(document.createTextNode(T("nav.offlineBefore")));
     p.appendChild(el("code", null, "python3 server/proxy.py"));
@@ -409,7 +422,7 @@
       menu.appendChild(li);
     } else {
       wrap.appendChild(el("span", null, T("nav.signIn")));
-      btn.setAttribute("aria-label", T("nav.signInOffline"));
+      btn.setAttribute("aria-label", T(isStaticMode() ? "nav.signInStatic" : "nav.signInOffline"));
       var noteLi = el("li");
       noteLi.appendChild(offlineNote());
       menu.appendChild(noteLi);

@@ -1,6 +1,8 @@
-/* MedIndex API client: a tiny same-origin XHR JSON helper.
+/* Synapse API client: a tiny same-origin XHR JSON helper.
  * Usage: MedIndexAPI.me(function (err, data) { ... });
- * err = {status, error, field?}. On file:// every call fails with {status:0, error:"offline"}.
+ * err = {status, error, field?}. On file:// and on static hosting (mode() "file"/"static",
+ * see js/config.js) every call fails with {status:0, error:"offline"} without a request.
+ * MedIndexAPI.ready(cb) calls cb(mode) once the backend probe has finished.
  * The session lives in an HttpOnly cookie set by the server; nothing is stored in the browser. */
 (function () {
   "use strict";
@@ -13,12 +15,72 @@
 
   function later(fn) { setTimeout(fn, 0); }
 
+  /* ---------- backend detection ----------
+     "file"   : opened from disk (file://)
+     "static" : static hosting (GitHub Pages, backend "off", or the probe failed) -> no API calls
+     "server" : the Synapse server answered GET /api/me with JSON
+     "pending": the one-per-page probe is still running; calls wait for it. */
+  var MODE = null, waiters = [], probeResult = null;
+
+  function cfgBackend() {
+    var c = window.SYNAPSE_CONFIG;
+    return (c && typeof c.backend === "string") ? c.backend.toLowerCase() : "auto";
+  }
+
+  function settle(m) {
+    MODE = m;
+    var w = waiters; waiters = [];
+    w.forEach(function (fn) { try { fn(m); } catch (e) { /* keep going */ } });
+  }
+
+  function mode() {
+    if (MODE) return MODE;
+    if (!isOnline()) { MODE = "file"; return MODE; }
+    var host = (location.hostname || "").toLowerCase();
+    var b = cfgBackend();
+    if (b === "off" || /\.github\.io$/.test(host)) { MODE = "static"; return MODE; }
+    if (b === "on") { MODE = "server"; return MODE; }
+    MODE = "pending";
+    rawRequest("GET", "/api/me", null, function (err, data) {
+      var isJson = !!(data && typeof data === "object");
+      if (isJson && (!err || err.status !== 404)) {
+        probeResult = { err: err, data: data };
+        settle("server");
+      } else {
+        settle("static");
+      }
+    });
+    return MODE;
+  }
+
+  function ready(cb) {
+    if (typeof cb !== "function") return;
+    var m = mode();
+    if (m === "pending") waiters.push(cb);
+    else later(function () { cb(m); });
+  }
+
+  function isStatic() { var m = mode(); return m === "static"; }
+
   function request(method, url, body, cb) {
     cb = typeof cb === "function" ? cb : function () {};
-    if (!isOnline()) {
+    var m = mode();
+    if (m === "pending") { waiters.push(function () { request(method, url, body, cb); }); return; }
+    if (m !== "server") {
       later(function () { cb({ status: 0, error: "offline" }, null); });
       return;
     }
+    // The probe already fetched /api/me: hand that answer to the first caller.
+    if (probeResult && method === "GET" && url === "/api/me") {
+      var p = probeResult; probeResult = null;
+      later(function () { cb(p.err, p.data); });
+      return;
+    }
+    probeResult = null;
+    rawRequest(method, url, body, cb);
+  }
+
+  function rawRequest(method, url, body, cb) {
     var done = false;
     function finish(err, data) {
       if (done) return;
@@ -67,6 +129,9 @@
 
   var api = {
     isOnline: isOnline,
+    mode: mode,
+    isStatic: isStatic,
+    ready: ready,
     request: request,
 
     me: function (cb) { request("GET", "/api/me", null, cb); },

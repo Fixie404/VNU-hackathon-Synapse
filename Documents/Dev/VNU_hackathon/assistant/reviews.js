@@ -10,19 +10,24 @@
  * If MedIndexAPI is missing or answers { status: 0 } (file://), the module is "offline": every doctor shows
  * "No ratings yet" and addReview() reports that reviews need the local server.
  * The old device-only store (localStorage "medindex.reviews.v1") is removed once and never read.
- * No reviews or ratings are ever seeded or invented.
+ * Demo data: the summary's "demo: true" flag (server seeded with generated demo reviews) is exposed as isDemo().
+ * Without a server (file:// or static hosting), the optional data/demo-reviews.js (window.DEMO_REVIEWS =
+ * { ratings: {id: {avg, count}}, reviews: {id: [{stars, comment, createdAt, author}]} }) is used read-only for the
+ * ratings and the reviews dialog (isLocalDemo()); writing and deleting reviews stay server-only.
  */
 (function () {
   "use strict";
   window.MedIndex = window.MedIndex || {};
 
-  var LABEL = "MedIndex reviews";
+  var LABEL = "Synapse reviews";
   var MAX_COMMENT = 280;
   var LEGACY_KEY = "medindex.reviews.v1";
 
   var summary = {};      // doctorId -> { avg, count }
   var mine = {};         // doctorId -> { stars, comment, createdAt } for the signed-in user (from list/create)
   var state = "idle";    // idle | loading | ready | offline | error
+  var demo = false;      // true when the ratings come from generated demo reviews (server flag or data/demo-reviews.js)
+  var localDemo = false; // true when the static/offline page uses window.DEMO_REVIEWS (read-only)
   var listeners = [];
   var loadSeq = 0;
 
@@ -61,19 +66,32 @@
     return out;
   }
 
+  function demoSource() {
+    var D = window.DEMO_REVIEWS;
+    return D && typeof D === "object" && D.ratings && typeof D.ratings === "object" ? D : null;
+  }
+  /** No server: use data/demo-reviews.js when present (state "ready", read-only), else "offline". */
+  function goOffline() {
+    var D = demoSource();
+    if (D) { summary = cleanSummary(D); state = "ready"; demo = true; localDemo = true; }
+    else { summary = {}; state = "offline"; demo = false; localDemo = false; }
+  }
+
   /** load(cb?): (re)loads the ratings summary. cb(err|null). */
   function load(cb) {
     var a = api(), seq = ++loadSeq;
-    if (!a) { state = "offline"; summary = {}; notify(null); if (cb) cb({ status: 0, error: "offline" }); return; }
+    if (!a) { goOffline(); notify(null); if (cb) cb({ status: 0, error: "offline" }); return; }
     if (state !== "ready") state = "loading";
     try {
       a.reviews.summary(function (err, data) {
         if (seq !== loadSeq) return;
         if (err) {
-          state = isOfflineErr(err) ? "offline" : "error";
-          if (state === "offline") summary = {};
+          if (isOfflineErr(err)) goOffline();
+          else state = "error";
         } else {
           state = "ready";
+          localDemo = false;
+          demo = !!(data && data.demo === true);
           summary = cleanSummary(data);
         }
         notify(null);
@@ -86,16 +104,59 @@
     return r && typeof r === "object" && Number.isInteger(r.stars) && r.stars >= 1 && r.stars <= 5;
   }
 
-  /** getReview(doctorId) -> the signed-in user's review { stars, comment, createdAt } | null (when known). */
+  /** getReview(doctorId) -> the signed-in user's review { id, stars, comment, createdAt } | null (when known). */
   function getReview(doctorId) {
     var r = mine[String(doctorId)];
     if (!validReview(r)) return null;
-    return { stars: r.stars, comment: String(r.comment || ""), createdAt: r.createdAt || null };
+    return { id: r.id != null ? r.id : null, stars: r.stars, comment: String(r.comment || ""), createdAt: r.createdAt || null };
   }
   function hasReviewed(doctorId) { return getReview(doctorId) !== null; }
 
   function rememberMine(doctorId, r) {
-    if (validReview(r)) mine[String(doctorId)] = { stars: r.stars, comment: r.comment || "", createdAt: r.createdAt || null };
+    if (validReview(r)) {
+      mine[String(doctorId)] = { id: Number.isInteger(r.id) ? r.id : null, stars: r.stars, comment: r.comment || "", createdAt: r.createdAt || null };
+    }
+  }
+
+  /**
+   * deleteReview(reviewId, cb): DELETE /api/reviews/<id> (204; 404 = not yours / already gone).
+   * Then forgets the cached own review, reloads the summary and fires onChange (ratings, ranking,
+   * distinctions refresh). cb(err|null, { doctorId }) where err = { code: "auth"|"offline"|"error", status, error }.
+   */
+  function deleteReview(reviewId, cb) {
+    var done = typeof cb === "function" ? cb : function () {};
+    var a = api();
+    var rid = Number(reviewId);
+    if (!Number.isInteger(rid) || rid <= 0) { done({ code: "error", status: 0, error: msg("errDelete", "Your review could not be deleted. Please try again.") }, null); return; }
+    if (!a || typeof a.request !== "function" || state === "offline" || localDemo) {
+      done({ code: "offline", status: 0, error: msg("errOfflineShort", "Reviews need the local server.") }, null);
+      return;
+    }
+    var doctorId = null;
+    Object.keys(mine).forEach(function (k) { if (mine[k] && mine[k].id === rid) doctorId = k; });
+    try {
+      a.request("DELETE", "/api/reviews/" + encodeURIComponent(String(rid)), null, function (err) {
+        if (err && err.status !== 404) {
+          if (err.status === 401) { done({ code: "auth", status: 401, error: msg("errSignIn", "Sign in to leave a review.") }, null); return; }
+          if (isOfflineErr(err)) { done({ code: "offline", status: 0, error: msg("errOfflineShort", "Reviews need the local server.") }, null); return; }
+          done({ code: "error", status: err.status || 0, error: msg("errDelete", "Your review could not be deleted. Please try again.") }, null);
+          return;
+        }
+        // 204, or 404 (already gone): either way this user has no review of that doctor any more.
+        if (doctorId !== null) {
+          var old = mine[doctorId];
+          delete mine[doctorId];
+          var s = summary[doctorId];
+          if (!err && s && old) {
+            summary[doctorId] = s.count > 1 ? { avg: (s.avg * s.count - old.stars) / (s.count - 1), count: s.count - 1 } : undefined;
+            if (!summary[doctorId]) delete summary[doctorId];
+          }
+        }
+        notify(doctorId);
+        // Reload the summary first (it fires onChange again), so callers can move focus after the last re-render.
+        load(function () { done(null, { doctorId: doctorId }); });
+      });
+    } catch (e) { done({ code: "error", status: -1, error: msg("errDelete", "Your review could not be deleted. Please try again.") }, null); }
   }
 
   /** summaryFor(doctorId) -> { avg, count } | null (server ratings only). */
@@ -120,7 +181,7 @@
     var text = comment == null ? "" : String(comment).trim();
     if (text.length > MAX_COMMENT) return fail("invalid", msg("errComment", "Comment must be at most " + MAX_COMMENT + " characters.", { max: MAX_COMMENT }));
     var a = api();
-    if (!a || state === "offline") return fail("offline", msg("errOfflineRun", "Reviews need the local server. Run it and open http://127.0.0.1:8000."));
+    if (!a || state === "offline" || localDemo) return fail("offline", msg("errOfflineRun", "Reviews need the local server. Run it and open http://127.0.0.1:8000."));
     try {
       a.reviews.create(doctorId, stars, text, function (err, data) {
         if (err) {
@@ -130,13 +191,13 @@
             list(doctorId, function () { notify(doctorId); }); // learn the existing review for the "You rated" state
             return;
           }
-          if (isOfflineErr(err)) { state = "offline"; notify(null); }
+          if (isOfflineErr(err)) { goOffline(); notify(null); }
           done({ ok: false, code: isOfflineErr(err) ? "offline" : "error", status: err.status || 0,
                  error: isOfflineErr(err) ? msg("errOfflineShort", "Reviews need the local server.") : msg("errSave", "Your review could not be saved. Please try again.") }, null);
           return;
         }
         var review = (data && data.review) || { stars: stars, comment: text, createdAt: new Date().toISOString() };
-        rememberMine(doctorId, { stars: Number.isInteger(review.stars) ? review.stars : stars, comment: review.comment, createdAt: review.createdAt });
+        rememberMine(doctorId, { id: review.id, stars: Number.isInteger(review.stars) ? review.stars : stars, comment: review.comment, createdAt: review.createdAt });
         // Optimistic update so the card changes at once; the summary reload below confirms it.
         var s = summary[String(doctorId)];
         summary[String(doctorId)] = s ? { avg: (s.avg * s.count + stars) / (s.count + 1), count: s.count + 1 } : { avg: stars, count: 1 };
@@ -151,6 +212,7 @@
   /** list(doctorId, cb): written reviews from the server; caches the user's own review (data.mine). */
   function list(doctorId, cb) {
     var done = typeof cb === "function" ? cb : function () {};
+    if (localDemo) { var lid = String(doctorId); setTimeout(function () { done(null, localList(lid)); }, 0); return; }
     var a = api();
     if (!a || typeof a.reviews.list !== "function") { done({ status: 0, error: "offline" }, null); return; }
     try {
@@ -158,10 +220,25 @@
         if (!err && data) {
           if (validReview(data.mine)) rememberMine(doctorId, data.mine);
           else if (data.mine === null || data.mine === false) delete mine[String(doctorId)];
-        } else if (err && isOfflineErr(err)) { state = "offline"; }
+        } else if (err && isOfflineErr(err)) {
+          goOffline();
+          if (localDemo) { done(null, localList(String(doctorId))); return; }
+        }
         done(err || null, data || null);
       });
     } catch (e) { done({ status: -1, error: String(e) }, null); }
+  }
+
+  /** The dialog payload built from data/demo-reviews.js (newest first, all shown, every entry marked demo). */
+  function localList(id) {
+    var D = demoSource();
+    var src = D && D.reviews && Array.isArray(D.reviews[id]) ? D.reviews[id] : [];
+    var shown = src.filter(validReview).map(function (r) {
+      return { stars: r.stars, comment: typeof r.comment === "string" ? r.comment.slice(0, MAX_COMMENT) : "",
+               createdAt: typeof r.createdAt === "string" ? r.createdAt : null,
+               author: typeof r.author === "string" ? r.author.slice(0, 60) : null, demo: true };
+    }).sort(function (x, y) { return String(y.createdAt || "").localeCompare(String(x.createdAt || "")); });
+    return { doctorId: Number(id), total: shown.length, shown: shown, limited: false, limit: null, mine: null, demo: true };
   }
 
   function publishedOf(doctor) {
@@ -222,7 +299,7 @@
 
   // A different user (or none) means a different "own review" set.
   try {
-    document.addEventListener("medindex:auth", function () { mine = {}; notify(null); });
+    document.addEventListener("medindex:auth", function (e) { mine = {}; notify(null); if (e && e.detail && e.detail.user) loadMine(); });
   } catch (e) { /* no document events: ignore */ }
 
   window.MedIndex.reviews = {
@@ -232,20 +309,52 @@
     getReview: getReview,
     hasReviewed: hasReviewed,
     addReview: addReview,
+    deleteReview: deleteReview,
     list: list,
     load: load,
     summaryFor: summaryFor,
     status: function () { return state; },
-    isOffline: function () { return state === "offline" || !api(); },
+    /** True when reviews cannot be written (no server). With isLocalDemo() the ratings and the list still work. */
+    isOffline: function () { return state === "offline" || localDemo || !api(); },
+    /** True when the ratings come from generated demo reviews (summary.demo or data/demo-reviews.js). */
+    isDemo: function () { return demo && state === "ready"; },
+    /** True when the page has no server and reads data/demo-reviews.js (read-only). */
+    isLocalDemo: function () { return localDemo && state === "ready"; },
+    /** True when per-doctor ratings are loaded (server summary or the local demo file). */
+    hasRatings: function () { return state === "ready"; },
     combinedRating: combinedRating,
     withRatings: withRatings,
     onChange: onChange,
     /** Test hook: forget cached data (simulates a reload). */
-    _reset: function () { summary = {}; mine = {}; state = "idle"; loadSeq++; }
+    _reset: function () { summary = {}; mine = {}; state = "idle"; demo = false; localDemo = false; loadSeq++; }
   };
 
   // Load once at startup (after the other deferred scripts so js/api.js is ready wherever it is placed).
-  function start() { load(); }
+  /** loadMine(): the signed-in user's own reviews (GET /api/reviews/mine), so cards show "You rated" at once. 401 = signed out. */
+  var mineSeq = 0;
+  function loadMine() {
+    var a = api(), seq = ++mineSeq;
+    if (!a || typeof a.request !== "function") return;
+    try {
+      a.request("GET", "/api/reviews/mine", null, function (err, data) {
+        if (seq !== mineSeq || err || !data || !Array.isArray(data.reviews)) return;
+        var next = {};
+        data.reviews.forEach(function (r) {
+          if (r && r.doctorId != null && validReview(r)) {
+            next[String(r.doctorId)] = { id: Number.isInteger(r.id) ? r.id : null, stars: r.stars, comment: r.comment || "", createdAt: r.createdAt || null };
+          }
+        });
+        mine = next;
+        notify(null);
+      });
+    } catch (e) { /* optional */ }
+  }
+
+  function start() {
+    load();
+    var nav = window.MedIndexNav;
+    if (nav && nav.user) loadMine(); // otherwise the "medindex:auth" event (signed in) loads it
+  }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else setTimeout(start, 0);
 })();

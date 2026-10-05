@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>MedIndex ranking tests</title>
+<title>Synapse ranking tests</title>
 <style>
   body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; }
   .pass { color: #0a7d32; } .fail { color: #b00020; font-weight: bold; }
 </style>
 </head>
 <body>
-<h1>MedIndex ranking + reviews tests</h1>
+<h1>Synapse ranking + reviews tests</h1>
 <pre id="out"></pre>
 <script src="../data/doctors.js"></script>
 <script src="reviews.js"></script>
@@ -41,8 +41,8 @@
   }
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
-  var R = window.MedIndex.ranking;
-  var V = window.MedIndex.reviews;
+  var R = window.Synapse.ranking;
+  var V = window.Synapse.reviews;
   var SENIOR = "Senior Consultant / Primary Physician";
   var SPEC = "Specialist Physician";
 
@@ -55,7 +55,7 @@
   function distFromMap(map) { return function (d) { return d.id in map ? map[d.id] : null; }; }
   var cardio = [{ specialty: "Cardiology", confidence: "High" }];
 
-  // Reviews are server-backed: a synchronous in-memory MedIndexAPI mock stands in for the server.
+  // Reviews are server-backed: a synchronous in-memory SynapseAPI mock stands in for the server.
   var mockDb = { "90001": [] }, mockUser = { id: 1 };
   function mockSummary() {
     var r = {};
@@ -65,7 +65,7 @@
     });
     return { ratings: r };
   }
-  window.MedIndexAPI = { reviews: {
+  window.SynapseAPI = { reviews: {
     summary: function (cb) { cb(null, mockSummary()); },
     list: function (id, cb) { var l = mockDb[id] || []; cb(null, { doctorId: id, total: l.length, shown: l.slice(0, 5), limited: l.length > 5, limit: 5,
       mine: l.filter(function (x) { return x.userId === mockUser.id; })[0] || null }); },
@@ -211,7 +211,7 @@
     unsub();
     var after = V.combinedRating(d);
     assert(Math.abs(after.value - (4 * 3 + 5) / 4) < 1e-9 && after.count === 4 && after.sources.length === 2 &&
-      after.sources[1].label === "MedIndex reviews",
+      after.sources[1].label === "Synapse reviews",
       "10: combinedRating updates immediately (count-weighted)", JSON.stringify(after));
     var second = add(90001, 1, "again");
     assert(!second.ok && second.code === "duplicate" && V.getReview(90001).stars === 5, "10: second review for same doctor refused (409)", second.error);

@@ -151,9 +151,33 @@
     return d.medicalRank === SENIOR_RANK ? 1 : 0;
   }
 
-  /** Filters combine with AND. Returns a new array. */
+  /* ---------- Synapse ratings (assistant/reviews.js summary cache) ---------- */
+  var MIN_RATINGS = [3, 4, 4.5, 4.8];
+  function reviewsMod() { var m = window.MedIndex && window.MedIndex.reviews; return m && typeof m.summaryFor === "function" ? m : null; }
+  /** True when per-doctor Synapse averages are loaded (server summary or the local demo file). */
+  function ratingsAvailable() {
+    var r = reviewsMod();
+    if (!r) return false;
+    return typeof r.hasRatings === "function" ? r.hasRatings() : (typeof r.status === "function" && r.status() === "ready");
+  }
+  /** { avg, count } from the Synapse reviews summary, or null (no reviews / not loaded). */
+  function synapseRating(d) {
+    var r = reviewsMod();
+    var s = r && d && d.id != null ? r.summaryFor(d.id) : null;
+    return s && typeof s.avg === "number" && isFinite(s.avg) && s.count > 0 ? s : null;
+  }
+  function validMinRating(v) { v = Number(v); return MIN_RATINGS.indexOf(v) !== -1 ? v : 0; }
+  /** avg >= threshold (a tiny epsilon absorbs float noise such as 4.4999999); unrated doctors never pass. */
+  function passesMinRating(d, min, ratingFor) {
+    if (!min) return true;
+    var s = (ratingFor || synapseRating)(d);
+    return !!s && s.avg >= min - 1e-9;
+  }
+
+  /** Filters combine with AND. Returns a new array. filters.minRating (0 = any) uses the Synapse averages. */
   function filterDoctors(doctors, filters) {
     var q = normalizeText(filters.query);
+    var min = validMinRating(filters.minRating);
     return doctors.filter(function (d) {
       if (q) {
         var hay = normalizeText(d.name) + " | " + specHay(d.specialty);
@@ -162,6 +186,7 @@
       if (filters.specialty && d.specialty !== filters.specialty) return false;
       if (filters.hospitals && filters.hospitals.indexOf(d.hospital) === -1) return false;
       if (filters.cnasOnly && d.acceptsCNAS !== true) return false;
+      if (min && !passesMinRating(d, min, filters.ratingFor)) return false;
       return true;
     });
   }
@@ -186,6 +211,12 @@
     };
     var byPriceAsc = function (a, b) { return priceOf(a) - priceOf(b); };
     var bySeniority = function (a, b) { return seniorityScore(b) - seniorityScore(a); };
+    var recommended = function (a, b) {
+      return bySeniority(a, b) ||
+        (origin ? dist(a) - dist(b) : 0) ||
+        byPriceAsc(a, b) ||
+        byName(a, b);
+    };
 
     var cmp;
     switch (sortKey) {
@@ -204,13 +235,16 @@
       case "senior":
         cmp = function (a, b) { return bySeniority(a, b) || byDistance(a, b); };
         break;
-      default: // recommended
+      case "rated":
+        // Synapse average desc, then review count desc (unrated last), then the "recommended" tie-breaks.
         cmp = function (a, b) {
-          return bySeniority(a, b) ||
-            (origin ? dist(a) - dist(b) : 0) ||
-            byPriceAsc(a, b) ||
-            byName(a, b);
+          var ra = synapseRating(a), rb = synapseRating(b);
+          if (!ra || !rb) return (ra ? -1 : 0) + (rb ? 1 : 0) || recommended(a, b);
+          return (rb.avg - ra.avg) || (rb.count - ra.count) || recommended(a, b);
         };
+        break;
+      default: // recommended
+        cmp = recommended;
     }
     return doctors.slice().sort(function (a, b) {
       var r = cmp(a, b);
@@ -293,6 +327,7 @@
     specialty: "",
     hospitals: NETWORKS.slice(),
     cnasOnly: false,
+    minRating: 0,      // 0 = any; else 3 | 4 | 4.5 | 4.8 (Synapse average, needs the ratings summary)
     sort: "recommended",
     origin: null // { lat, lng, label, kind: "gps"|"area" }
   };
@@ -680,11 +715,14 @@
 
   function render(s) {
     closePop();
+    if (!ratingsAvailable()) s.minRating = 0; // the control is disabled: never filter on missing ratings
+    if (s.sort === "rated" && !ratingsAvailable()) s.sort = "recommended";
     var list = filterDoctors(DOCTORS, {
       query: s.query,
       specialty: s.specialty,
       hospitals: s.hospitals,
-      cnasOnly: s.cnasOnly
+      cnasOnly: s.cnasOnly,
+      minRating: s.minRating
     });
     beforeRenderHooks.forEach(function (cb) { try { cb(list, s); } catch (e) { console.error(e); } });
     var custom = customSorts[s.sort];
@@ -701,6 +739,17 @@
     grid.replaceChildren(frag);
 
     $("empty").hidden = count !== 0;
+    var emptyHint = $("empty-rating-hint");
+    if (!emptyHint && $("empty-reset")) {
+      emptyHint = el("p", "empty-rating-hint");
+      emptyHint.id = "empty-rating-hint";
+      $("empty").insertBefore(emptyHint, $("empty-reset"));
+    }
+    if (emptyHint) {
+      emptyHint.hidden = !(count === 0 && s.minRating);
+      emptyHint.textContent = s.minRating ? tr("dir.minRating.emptyHint", { v: ratingText(s.minRating) }) : "";
+    }
+    renderDemoNote();
     grid.hidden = count === 0;
     $("sort-hint").hidden = !(s.sort === "nearest" && !s.origin);
 
@@ -709,8 +758,51 @@
     pinHighlighted(); // deep-linked card stays centred + focused through early re-renders
   }
 
+  function ratingText(v) {
+    var t = String(v);
+    return uiLang() === "ro" ? t.replace(".", ",") : t;
+  }
+  /** Minimum-rating select: translated labels, disabled (with a hint) when no ratings are available. */
+  function syncMinRating(s) {
+    var sel = $("min-rating");
+    if (!sel) return;
+    Array.prototype.forEach.call(sel.options, function (o) {
+      var v = validMinRating(o.value);
+      var label = v ? tr("dir.minRating.opt", { v: ratingText(v) }) : tr("dir.minRating.any");
+      if (o.textContent !== label) o.textContent = label;
+    });
+    var on = ratingsAvailable();
+    var r = reviewsMod();
+    var loading = !!(r && typeof r.status === "function" && (r.status() === "loading" || r.status() === "idle"));
+    sel.disabled = !on;
+    sel.value = String(s.minRating || 0);
+    var help = $("min-rating-help");
+    if (help) {
+      help.hidden = on || loading;
+      help.textContent = on || loading ? "" : tr("dir.minRating.offline");
+    }
+    var rated = sortOption("rated");
+    if (rated) rated.disabled = !on;
+  }
+  /** One small muted line near the count while generated demo reviews are in use. */
+  function renderDemoNote() {
+    var r = reviewsMod();
+    var on = !!(r && typeof r.isDemo === "function" && r.isDemo());
+    var note = $("demo-note");
+    if (!note) {
+      var count = $("results-count");
+      if (!count || !count.parentNode) return;
+      note = el("p", "results-demo-note");
+      note.id = "demo-note";
+      count.parentNode.insertBefore(note, count.nextSibling);
+    }
+    note.hidden = !on;
+    note.textContent = on ? tr("dir.demoNote") : "";
+  }
+
   function syncControls(s) {
     if ($("search").value !== s.query) $("search").value = s.query;
+    syncMinRating(s);
     $("specialty").value = s.specialty;
     $("sort").value = s.sort;
     var sw = $("cnas-switch");
@@ -830,6 +922,7 @@
     state.specialty = "";
     state.hospitals = NETWORKS.slice();
     state.cnasOnly = false;
+    state.minRating = 0;
     state.sort = "recommended";
     $("search").value = "";
     render(state);
@@ -916,6 +1009,7 @@
     $("search").addEventListener("input", function (e) { state.query = e.target.value; render(state); });
     $("specialty").addEventListener("change", function (e) { state.specialty = e.target.value; render(state); });
     $("sort").addEventListener("change", function (e) { state.sort = e.target.value; render(state); });
+    if ($("min-rating")) $("min-rating").addEventListener("change", function (e) { state.minRating = validMinRating(e.target.value); render(state); });
     $("cnas-switch").addEventListener("click", function () { state.cnasOnly = !state.cnasOnly; render(state); });
     $("reset-filters").addEventListener("click", resetFilters);
     $("empty-reset").addEventListener("click", function () { resetFilters(); $("search").focus(); });
@@ -940,6 +1034,7 @@
     if (state.specialty && state.specialty !== d.specialty) state.specialty = "";
     if (state.hospitals.indexOf(d.hospital) === -1 && NETWORKS.indexOf(d.hospital) !== -1) state.hospitals.push(d.hospital);
     if (state.cnasOnly && d.acceptsCNAS !== true) state.cnasOnly = false;
+    if (state.minRating && !passesMinRating(d, state.minRating)) state.minRating = 0;
     state.highlight = d.id;
   }
   function focusLinkedDoctor(d) {
@@ -984,13 +1079,21 @@
   function onAuth() { loadFavourites(); refreshDistinctions(); }
   document.addEventListener("medindex:auth", function () { setTimeout(onAuth, 0); });
   if (window.MedIndex && window.MedIndex.reviews && typeof window.MedIndex.reviews.onChange === "function") {
-    window.MedIndex.reviews.onChange(function () { refreshDistinctions(); });
+    window.MedIndex.reviews.onChange(function () {
+      refreshDistinctions();
+      // A deep-linked doctor must stay visible when fresh ratings change who passes the threshold.
+      if (state.highlight != null && state.minRating) {
+        var target = DOCTORS.filter(function (d) { return d.id === state.highlight; })[0];
+        if (target && !passesMinRating(target, state.minRating)) state.minRating = 0;
+      }
+      if (!(window.MedIndex.ui && typeof window.MedIndex.ui.decorateCard === "function")) rerenderKeepScroll(); // ui.js re-renders itself
+    });
   }
 
   // Expose pure functions for console testing during the demo.
   // Object.assign keeps the engine/ranking/reviews namespaces loaded before app.js.
   function currentFilters() {
-    return { query: state.query, specialty: state.specialty, hospitals: state.hospitals.slice(), cnasOnly: state.cnasOnly };
+    return { query: state.query, specialty: state.specialty, hospitals: state.hospitals.slice(), cnasOnly: state.cnasOnly, minRating: state.minRating };
   }
 
   function sortOption(key) {
@@ -1011,6 +1114,7 @@
     haversineKm: haversineKm,
     filterDoctors: filterDoctors,
     sortDoctors: sortDoctors,
+    synapseRating: synapseRating,
     render: function () { render(state); },
     state: state
   });

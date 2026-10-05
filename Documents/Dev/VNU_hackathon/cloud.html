@@ -3,8 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title data-i18n="cloud.pageTitle">Secure Medical Cloud – MedIndex</title>
-  <meta name="description" data-i18n-attr="content:cloud.metaDesc" content="Keep your medical file details, ChatBot History and favourite doctors organised in the MedIndex Secure Medical Cloud (Premium).">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <title data-i18n="cloud.pageTitle">Secure Medical Cloud – Synapse</title>
+  <meta name="description" data-i18n-attr="content:cloud.metaDesc" content="Keep your medical file details, ChatBot History and favourite doctors organised in the Synapse Secure Medical Cloud (Premium).">
+  <link rel="icon" type="image/png" href="assets/synapse-logo-64.png">
+  <link rel="apple-touch-icon" href="assets/synapse-logo-192.png">
   <link rel="stylesheet" href="css/site.css">
   <link rel="stylesheet" href="css/account.css">
   <link rel="stylesheet" href="css/cloud.css">
@@ -22,6 +25,12 @@
       <h1 class="acct-title" id="cl-offline-title" data-i18n="cloud.offline.title">The Medical Cloud needs the local server</h1>
       <p class="acct-muted"><span data-i18n="cloud.offline.text1">You opened this page as a local file. Run</span> <code>python3 server/proxy.py</code> <span data-i18n="cloud.offline.text2">in the project folder, then open</span>
         <a href="http://127.0.0.1:8000/cloud.html">http://127.0.0.1:8000/cloud.html</a>.</p>
+    </section>
+
+    <section class="acct-card cl-gate" id="cl-static" hidden aria-labelledby="cl-static-title">
+      <h1 class="acct-title" id="cl-static-title" data-i18n="common.staticShort">Browse-only demo</h1>
+      <p class="acct-muted" data-i18n="common.staticNotice">This public demo runs in browse-only mode: accounts, reviews, Premium and the AI assistant need the Synapse server.</p>
+      <p><a href="doctors.html" data-i18n="nav.doctors">Find Doctors</a></p>
     </section>
 
     <section class="acct-card cl-gate" id="cl-error" hidden aria-labelledby="cl-error-title">
@@ -172,9 +181,9 @@
 
   <footer class="mx-footer">
     <div class="mx-wrap mx-footer-inner">
-      <a class="mx-brand" href="index.html" aria-label="MedIndex home" data-i18n-attr="aria-label:account.footer.homeAria">
-        <svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true" focusable="false"><rect x="1" y="1" width="38" height="38" rx="10" fill="currentColor"/><path d="M16 9h8v7h7v8h-7v7h-8v-7H9v-8h7z" fill="#0b1630"/></svg>
-        <span>MedIndex</span>
+      <a class="mx-brand" href="index.html" aria-label="Synapse home" data-i18n-attr="aria-label:account.footer.homeAria">
+        <img class="mx-logo" src="assets/synapse-logo-64.png" srcset="assets/synapse-logo-64.png 1x, assets/synapse-logo-192.png 2x, assets/synapse-logo-192.png 3x" width="30" height="30" alt="">
+        <span>Synapse</span>
       </a>
       <nav aria-label="Footer" data-i18n-attr="aria-label:footer.nav">
         <ul class="mx-footer-links">
@@ -186,7 +195,7 @@
       </nav>
       <div class="mx-footer-legal">
         <p><strong data-i18n="footer.dataTitle">About the data.</strong> <span data-i18n="footer.dataText">Data collected from public pages of each network. Prices may change; confirm with the clinic before booking.</span></p>
-        <p><strong data-i18n="footer.aiTitle">About the AI.</strong> <span data-i18n="footer.aiText">MedIndex Assistant gives general health information, not a diagnosis, and its advice may be wrong. It never replaces a doctor. In an emergency, call 112.</span></p>
+        <p><strong data-i18n="footer.aiTitle">About the AI.</strong> <span data-i18n="footer.aiText">Synapse Assistant gives general health information, not a diagnosis, and its advice may be wrong. It never replaces a doctor. In an emergency, call 112.</span></p>
       </div>
     </div>
   </footer>
@@ -217,6 +226,8 @@
       </div>
     </form>
   </dialog>
+
+  <script src="js/config.js"></script>
 
   <script src="js/i18n.js"></script>
   <script src="js/i18n-shell.js"></script>

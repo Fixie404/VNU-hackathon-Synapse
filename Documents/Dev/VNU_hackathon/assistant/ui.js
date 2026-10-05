@@ -243,7 +243,9 @@
   }
   var SIGNIN_URL = "account.html?next=doctors.html";
   var SIGNUP_URL = "account.html?mode=register&next=doctors.html";
-  function localServerMsg() { return T("reviews.localMsg"); }
+  // Static hosting (GitHub Pages): browse-only wording instead of the local-server one.
+  function staticSite() { var A = api(); return !!(A && typeof A.isStatic === "function" && A.isStatic()); }
+  function localServerMsg() { return T(staticSite() ? "common.staticNotice" : "reviews.localMsg"); }
 
   function formatDay(iso) {
     if (app.formatDate) return app.formatDate(iso);
@@ -283,7 +285,18 @@
       st.setAttribute("aria-hidden", "true");
       done.appendChild(st);
       done.appendChild(srOnly(TN("reviews.ratedSr", mine.stars)));
-      return done;
+      var wrap = el("span", "mi-rated");
+      wrap.appendChild(done);
+      var del = button("mi-rated-delete", T("reviews.deleteShort"));
+      del.setAttribute("aria-label", T("reviews.deleteAria", { name: doctor.name }));
+      del.setAttribute("aria-haspopup", "dialog");
+      del.addEventListener("click", function () {
+        deleteMyReview(doctor, del, function (err) {
+          if (!err) focusRateButton(doctor.id);
+        });
+      });
+      wrap.appendChild(del);
+      return wrap;
     }
     var b = button("btn btn-ghost mi-rate-btn", T("reviews.rate"));
     b.setAttribute("aria-label", T("reviews.rateAria", { name: doctor.name }));
@@ -295,7 +308,7 @@
   function buildReviewsButton(doctor) {
     var s = reviews.summaryFor ? reviews.summaryFor(doctor.id) : null;
     var n = s ? s.count : 0;
-    var offline = reviews.isOffline && reviews.isOffline();
+    var offline = reviews.isOffline && reviews.isOffline() && !(reviews.isLocalDemo && reviews.isLocalDemo());
     var b = button("btn btn-ghost mi-reviews-btn", offline ? T("reviews.button") : T("reviews.buttonN", { n: n }));
     b.setAttribute("aria-haspopup", "dialog");
     b.setAttribute("aria-label", offline ? T("reviews.ariaOffline", { name: doctor.name })
@@ -306,7 +319,7 @@
 
   function onRateClick(doctor, trigger) {
     if (reviews.isOffline && reviews.isOffline()) {
-      openInfoDialog(trigger, doctor.id, T("reviews.localTitle"), localServerMsg());
+      openInfoDialog(trigger, doctor.id, T(staticSite() ? "common.staticShort" : "reviews.localTitle"), localServerMsg());
       return;
     }
     if (!currentUser()) { openSignIn(trigger, doctor.id); return; }
@@ -323,6 +336,88 @@
     var box = document.querySelector('#grid .mi-card-rating[data-doctor-id="' + String(doctorId) + '"]');
     if (box) box.focus();
     return box;
+  }
+  /** After a delete: the card's "Rate this doctor" button is back; focus it (or the rating box). */
+  function focusRateButton(doctorId) {
+    var b = document.querySelector('#grid .mi-card-rating[data-doctor-id="' + String(doctorId) + '"] .mi-rate-btn:not([disabled])');
+    if (b) { b.focus(); return; }
+    focusRatingBox(doctorId);
+  }
+
+  /* ---------- Deleting your own review (card link + reviews dialog) ---------- */
+  var reviewLive = null;
+  /** Polite status message for screen readers ("Review deleted"). */
+  function announceReview(text) {
+    if (!reviewLive) {
+      reviewLive = el("div", "mi-sr-only");
+      reviewLive.setAttribute("role", "status");
+      reviewLive.setAttribute("aria-live", "polite");
+      reviewLive.id = "mi-review-live";
+      document.body.appendChild(reviewLive);
+    }
+    reviewLive.textContent = "";
+    setTimeout(function () { reviewLive.textContent = text; }, 60);
+  }
+
+  /** Native <dialog> confirm: Cancel is focused, Esc cancels, focus returns to the trigger. cb(ok). */
+  function confirmReviewDelete(trigger, doctor, cb) {
+    var dlg = document.createElement("dialog");
+    if (typeof dlg.showModal !== "function") { cb(window.confirm(T("reviews.confirmTitle"))); return; }
+    dlg.className = "mi-confirm-dialog";
+    dlg.setAttribute("aria-labelledby", "mi-confirm-title");
+    dlg.setAttribute("aria-describedby", "mi-confirm-text");
+    var form = el("form", "mi-confirm-body");
+    form.method = "dialog";
+    var h = el("h2", "mi-confirm-title", T("reviews.confirmTitle"));
+    h.id = "mi-confirm-title";
+    var p = el("p", "mi-confirm-text", T("reviews.confirmText", { name: doctor.name }));
+    p.id = "mi-confirm-text";
+    var actions = el("div", "mi-rate-actions");
+    var cancel = el("button", "btn btn-ghost mi-confirm-cancel", T("reviews.cancel"));
+    cancel.type = "submit"; cancel.value = "cancel";
+    var ok = el("button", "btn btn-primary mi-confirm-ok", T("reviews.confirmOk"));
+    ok.type = "submit"; ok.value = "ok";
+    actions.appendChild(cancel); actions.appendChild(ok);
+    form.appendChild(h); form.appendChild(p); form.appendChild(actions);
+    dlg.appendChild(form);
+    // Esc closes only this confirm, never the reviews dialog or the panel behind it.
+    dlg.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") return;
+      e.preventDefault(); e.stopPropagation();
+      dlg.close("cancel");
+    });
+    dlg.addEventListener("cancel", function (e) { e.preventDefault(); dlg.close("cancel"); });
+    dlg.addEventListener("close", function () {
+      var yes = dlg.returnValue === "ok";
+      dlg.remove();
+      if (trigger && document.body.contains(trigger) && !trigger.disabled) trigger.focus();
+      cb(yes);
+    });
+    document.body.appendChild(dlg);
+    dlg.returnValue = "";
+    dlg.showModal();
+    cancel.focus();
+  }
+
+  /** Confirms, then deletes the signed-in user's review of doctor. after(err|null). */
+  function deleteMyReview(doctor, trigger, after) {
+    var finish = typeof after === "function" ? after : function () {};
+    confirmReviewDelete(trigger, doctor, function (ok) {
+      if (!ok) { finish({ code: "cancel" }); return; }
+      function run(mine) {
+        if (!mine || mine.id == null) { announceReview(T("reviews.errDelete")); finish({ code: "error" }); return; }
+        if (trigger) { trigger.disabled = true; trigger.setAttribute("aria-busy", "true"); }
+        reviews.deleteReview(mine.id, function (err) {
+          if (trigger && document.body.contains(trigger)) { trigger.disabled = false; trigger.removeAttribute("aria-busy"); }
+          if (err) { announceReview(err.error || T("reviews.errDelete")); finish(err); return; }
+          announceReview(T("reviews.deleted"));
+          finish(null);
+        });
+      }
+      var mine = reviews.getReview(doctor.id);
+      if (mine && mine.id != null) run(mine);
+      else reviews.list(doctor.id, function () { run(reviews.getReview(doctor.id)); }); // learn the review id
+    });
   }
 
   /* ---------- Dialogs (rating, sign-in, reviews, info) ---------- */
@@ -486,12 +581,14 @@
     close.focus();
     var mine = rating;
 
-    if (reviews.isOffline && reviews.isOffline()) {
+    // Read-only demo file (no server): the list still opens; writing stays server-only.
+    if (reviews.isOffline && reviews.isOffline() && !(reviews.isLocalDemo && reviews.isLocalDemo())) {
       body.appendChild(el("p", "mi-rate-help", localServerMsg()));
       return;
     }
+    function fill(afterFill) {
     body.setAttribute("aria-busy", "true");
-    body.appendChild(el("p", "mi-reviews-loading", T("reviews.loading")));
+    body.replaceChildren(el("p", "mi-reviews-loading", T("reviews.loading")));
     reviews.list(doctor.id, function (err, data) {
       if (rating !== mine) return;
       body.removeAttribute("aria-busy");
@@ -502,6 +599,8 @@
       }
       var shown = Array.isArray(data.shown) ? data.shown : [];
       var total = typeof data.total === "number" ? data.total : shown.length;
+      var own = data.mine && Number.isInteger(data.mine.stars) ? data.mine : null;
+      if (own) body.appendChild(buildOwnReview(own));
       body.appendChild(buildStarsLine(doctor));
       if (!shown.length) {
         body.appendChild(el("p", "mi-reviews-empty", T("reviews.empty")));
@@ -532,7 +631,40 @@
         body.appendChild(foot);
       }
       if (reviews.hasReviewed(doctor.id)) app.rerender(); // the "You rated" state may be new
+      if (afterFill) afterFill();
     });
+    }
+
+    /** "Your review" block at the top of the dialog, with "Delete my review". */
+    function buildOwnReview(own) {
+      var box = el("section", "mi-own-review");
+      box.setAttribute("aria-labelledby", "mi-own-review-title");
+      var h = el("h3", "mi-own-review-title", T("reviews.yours"));
+      h.id = "mi-own-review-title";
+      box.appendChild(h);
+      var head = el("div", "mi-review-head");
+      var n = Math.max(1, Math.min(5, own.stars));
+      var st = starRow(n);
+      st.setAttribute("role", "img");
+      st.setAttribute("aria-label", T("reviews.reviewStars", { n: n }));
+      head.appendChild(st);
+      var day = formatDay(own.createdAt);
+      if (day) head.appendChild(el("span", "mi-review-date", day));
+      box.appendChild(head);
+      if (own.comment) box.appendChild(el("p", "mi-review-comment", String(own.comment)));
+      var del = button("btn btn-ghost mi-own-review-delete", T("reviews.deleteMine"));
+      del.setAttribute("aria-haspopup", "dialog");
+      del.addEventListener("click", function () {
+        deleteMyReview(doctor, del, function (err) {
+          if (err || rating !== mine) return;
+          fill(function () { close.focus(); });
+        });
+      });
+      box.appendChild(del);
+      return box;
+    }
+
+    fill();
   }
 
   function closeRating(returnFocus) {
@@ -847,6 +979,17 @@
       var hint = L(el("p", "mi-file-hint"), "chat.fileHint");
       hint.id = "mi-file-hint";
       foot.appendChild(hint);
+    }
+    // Once the backend probe (js/api.js) has finished: AI notice vs rules, and the static-site note.
+    if (api() && typeof api().ready === "function") {
+      api().ready(function (m) {
+        L(privacy, engine.USE_LLM ? "chat.llmNotice" : "chat.privacy");
+        if (m === "static" && !document.getElementById("mi-file-hint")) {
+          var sh = L(el("p", "mi-file-hint"), "common.staticNotice");
+          sh.id = "mi-file-hint";
+          foot.insertBefore(sh, privacy.nextSibling);
+        }
+      });
     }
     panel.appendChild(foot);
 

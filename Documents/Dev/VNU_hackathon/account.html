@@ -3,8 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title data-i18n="account.pageTitle">Your account – MedIndex</title>
-  <meta name="description" data-i18n-attr="content:account.metaDesc" content="Sign in or create a MedIndex account to manage Premium and your Secure Medical Cloud.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <title data-i18n="account.pageTitle">Your account – Synapse</title>
+  <meta name="description" data-i18n-attr="content:account.metaDesc" content="Sign in or create a Synapse account to manage Premium and your Secure Medical Cloud.">
+  <link rel="icon" type="image/png" href="assets/synapse-logo-64.png">
+  <link rel="apple-touch-icon" href="assets/synapse-logo-192.png">
   <link rel="stylesheet" href="css/site.css">
   <link rel="stylesheet" href="css/account.css">
   <link rel="stylesheet" href="css/transitions.css">
@@ -24,6 +27,13 @@
       </ol>
     </section>
 
+    <!-- static (GitHub Pages) notice -->
+    <section class="acct-card acct-offline" id="acct-static" hidden aria-labelledby="static-title">
+      <h1 id="static-title" class="acct-title" data-i18n="common.staticShort">Browse-only demo</h1>
+      <p data-i18n="common.staticNotice">This public demo runs in browse-only mode: accounts, reviews, Premium and the AI assistant need the Synapse server.</p>
+      <p><a href="doctors.html" data-i18n="nav.doctors">Find Doctors</a></p>
+    </section>
+
     <!-- loading -->
     <p class="acct-loading" id="acct-loading" role="status" data-i18n="account.loading">Loading your account…</p>
 
@@ -36,7 +46,7 @@
 
     <!-- logged out -->
     <section class="acct-card acct-auth" id="acct-auth" hidden aria-labelledby="auth-title">
-      <h1 id="auth-title" class="acct-title" data-i18n="account.auth.title">Your MedIndex account</h1>
+      <h1 id="auth-title" class="acct-title" data-i18n="account.auth.title">Your Synapse account</h1>
       <p class="acct-muted acct-lead" id="acct-next-note" hidden></p>
 
       <div class="acct-tabs" role="tablist" aria-label="Account" data-i18n-attr="aria-label:account.tabs.aria">
@@ -101,7 +111,7 @@
             <p class="acct-field-error" id="signup-name-error" aria-live="polite"></p>
           </div>
           <button type="submit" class="acct-btn acct-btn-primary acct-btn-block" id="signup-submit" data-i18n="account.signup.submit">Create account</button>
-          <p class="acct-help acct-center" data-i18n="account.signup.privacy">Your password is sent only to the MedIndex server over this connection; it is never stored in your browser.</p>
+          <p class="acct-help acct-center" data-i18n="account.signup.privacy">Your password is sent only to the Synapse server over this connection; it is never stored in your browser.</p>
         </form>
       </div>
     </section>
@@ -144,13 +154,40 @@
       </nav>
       <button type="button" class="acct-btn acct-btn-ghost acct-btn-block" id="logout-btn" data-i18n="account.logout">Sign out</button>
     </section>
+
+    <!-- logged in: my reviews -->
+    <section class="acct-card acct-reviews" id="acct-reviews" hidden aria-labelledby="my-reviews-title">
+      <h2 class="acct-subtitle" id="my-reviews-title" tabindex="-1" data-i18n="account.reviews.title">My reviews</h2>
+      <p class="acct-sr-only" id="my-reviews-live" role="status" aria-live="polite"></p>
+      <p class="acct-muted" id="my-reviews-loading" data-i18n="account.reviews.loading">Loading your reviews…</p>
+      <div id="my-reviews-error" hidden>
+        <p class="acct-muted" id="my-reviews-error-text"></p>
+        <button type="button" class="acct-btn acct-btn-ghost acct-btn-small" id="my-reviews-retry" data-i18n="account.retry">Try again</button>
+      </div>
+      <p class="acct-muted" id="my-reviews-empty" hidden>
+        <span data-i18n="account.reviews.empty">You haven't reviewed any doctors yet.</span>
+        <a href="doctors.html" data-i18n="account.reviews.findDoctors">Find a doctor to rate</a>
+      </p>
+      <ul class="acct-review-list" id="my-reviews-list" hidden></ul>
+    </section>
   </main>
+
+  <dialog class="acct-dialog" id="review-confirm" aria-labelledby="review-confirm-title" aria-describedby="review-confirm-text">
+    <form method="dialog" class="acct-dialog-body">
+      <h2 id="review-confirm-title" data-i18n="account.reviews.confirmTitle">Delete your review?</h2>
+      <p id="review-confirm-text" class="acct-muted"></p>
+      <div class="acct-dialog-actions">
+        <button type="submit" value="cancel" class="acct-btn acct-btn-ghost" id="review-confirm-cancel" data-i18n="account.reviews.cancel">Cancel</button>
+        <button type="submit" value="ok" class="acct-btn acct-btn-primary acct-danger-solid" id="review-confirm-ok" data-i18n="account.reviews.confirmOk">Delete review</button>
+      </div>
+    </form>
+  </dialog>
 
   <footer class="mx-footer">
     <div class="mx-wrap mx-footer-inner">
-      <a class="mx-brand" href="index.html" aria-label="MedIndex home" data-i18n-attr="aria-label:account.footer.homeAria">
-        <svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true" focusable="false"><rect x="1" y="1" width="38" height="38" rx="10" fill="currentColor"/><path d="M16 9h8v7h7v8h-7v7h-8v-7H9v-8h7z" fill="#0b1630"/></svg>
-        <span>MedIndex</span>
+      <a class="mx-brand" href="index.html" aria-label="Synapse home" data-i18n-attr="aria-label:account.footer.homeAria">
+        <img class="mx-logo" src="assets/synapse-logo-64.png" srcset="assets/synapse-logo-64.png 1x, assets/synapse-logo-192.png 2x, assets/synapse-logo-192.png 3x" width="30" height="30" alt="">
+        <span>Synapse</span>
       </a>
       <nav aria-label="Footer" data-i18n-attr="aria-label:footer.nav">
         <ul class="mx-footer-links">
@@ -162,16 +199,19 @@
       </nav>
       <div class="mx-footer-legal">
         <p><strong data-i18n="footer.dataTitle">About the data.</strong> <span data-i18n="footer.dataText">Data collected from public pages of each network. Prices may change; confirm with the clinic before booking.</span></p>
-        <p><strong data-i18n="footer.aiTitle">About the AI.</strong> <span data-i18n="footer.aiText">MedIndex Assistant gives general health information, not a diagnosis, and its advice may be wrong. It never replaces a doctor. In an emergency, call 112.</span></p>
+        <p><strong data-i18n="footer.aiTitle">About the AI.</strong> <span data-i18n="footer.aiText">Synapse Assistant gives general health information, not a diagnosis, and its advice may be wrong. It never replaces a doctor. In an emergency, call 112.</span></p>
       </div>
     </div>
   </footer>
 
+  <script src="js/config.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/i18n-shell.js"></script>
   <script src="js/i18n-account.js"></script>
   <script src="js/api.js"></script>
   <script src="js/nav.js"></script>
+  <script src="data/doctors.js"></script>
+  <script src="js/i18n-specialties.js"></script>
   <script src="js/account.js"></script>
   <script src="js/transitions.js" defer></script>
 </body>

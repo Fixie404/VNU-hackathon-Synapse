@@ -1,4 +1,4 @@
-/* MedIndex – rule-based symptom -> specialist-TYPE engine.
+/* Synapse – rule-based symptom -> specialist-TYPE engine.
  * Classic script, no modules, no fetch, no DOM access. Works over file://.
  * Reads window.SYMPTOM_RULES / RED_FLAG_RULES / SPECIALTY_FALLBACKS (data/symptoms.js)
  * and, if no list is passed in, window.DOCTORS for the available specialties.
@@ -65,6 +65,13 @@
   var USE_LLM = !FORCE_RULES && (PROTOCOL === "http:" || PROTOCOL === "https:");
   var FILE_MODE = PROTOCOL === "file:";
   var LLM_ENDPOINT = "/api/chat";
+  // Static hosting (GitHub Pages) has no backend: js/api.js decides ("server" | "static" | "file" | "pending").
+  // Without js/api.js (tests) the old protocol-only rule applies.
+  function apiMode() {
+    var A = root.MedIndexAPI;
+    return (A && typeof A.mode === "function") ? A.mode() : "server";
+  }
+  function llmOn() { var m = USE_LLM ? apiMode() : "off"; return m === "server" || m === "pending"; }
   var LLM_TIMEOUT_MS = 30000;
   var LLM_MAX_TURNS = 24;     // history items sent (a full 10-message round + replies fits)
   var LLM_MAX_CHARS = 1500;
@@ -78,16 +85,16 @@
   // ------------------------------------------------------------------ strings
   var T = {
     WELCOME: {
-      en: "Hi! I am the MedIndex Assistant, powered by AI. I can share general health information and help you find the right type of specialist and doctor. I am not a doctor and I can be wrong. In an emergency, call 112.",
-      ro: "Bună! Sunt asistentul MedIndex, bazat pe AI. Vă pot oferi informații generale despre sănătate și vă pot ajuta să găsiți tipul potrivit de specialist și medicul potrivit. Nu sunt medic și pot greși. În caz de urgență, sunați la 112."
+      en: "Hi! I am the Synapse Assistant, powered by AI. I can share general health information and help you find the right type of specialist and doctor. I am not a doctor and I can be wrong. In an emergency, call 112.",
+      ro: "Bună! Sunt asistentul Synapse, bazat pe AI. Vă pot oferi informații generale despre sănătate și vă pot ajuta să găsiți tipul potrivit de specialist și medicul potrivit. Nu sunt medic și pot greși. În caz de urgență, sunați la 112."
     },
     AI_FALLBACK: {
       en: "AI is unavailable right now, so this answer uses basic mode.",
       ro: "AI-ul nu este disponibil acum, așa că acest răspuns folosește modul de bază."
     },
     TYPING: {
-      en: "MedIndex Assistant is typing…",
-      ro: "Asistentul MedIndex scrie…"
+      en: "Synapse Assistant is typing…",
+      ro: "Asistentul Synapse scrie…"
     },
     FILE_HINT: {
       en: "For AI answers, run the local server and open http://127.0.0.1:8000",
@@ -1388,7 +1395,13 @@
     return new Promise(function (resolve) {
       var done = false;
       function finish(v) { if (!done) { done = true; resolve(v); } }
-      if (!USE_LLM && !(opts && opts.force)) { finish({ ok: false, reason: "disabled" }); return; }
+      var A = root.MedIndexAPI;
+      if (apiMode() === "pending" && A && typeof A.ready === "function") {
+        A.ready(function () { chatWithLLM(history, answers, availableSpecialties, lang, opts).then(finish); });
+        return;
+      }
+      if (apiMode() !== "server" && apiMode() !== "file") { finish({ ok: false, reason: "disabled" }); return; }
+      if (!llmOn() && !(opts && opts.force)) { finish({ ok: false, reason: "disabled" }); return; }
       if (typeof XMLHttpRequest === "undefined") { finish({ ok: false, reason: "no-xhr" }); return; }
       var msgs = [];
       (history || []).forEach(function (m) {
@@ -1465,7 +1478,7 @@
     CONFIDENCE: { LOW_MAX: 39, MEDIUM_MIN: CONF_CFG.MEDIUM, HIGH_MIN: CONF_CFG.HIGH, REMAP_CAP: CONF_CFG.REMAP_CAP, LLM_CAP: CONF_CFG.LLM_CAP },
     sanitizeReply: sanitizeReply,
     SAFETY_PATTERNS: SAFETY_PATTERNS,
-    USE_LLM: USE_LLM,
+    get USE_LLM() { return llmOn(); },
     FILE_MODE: FILE_MODE,
     LLM_ENDPOINT: LLM_ENDPOINT,
     LLM_NOTICE: T.LLM_NOTICE.en,

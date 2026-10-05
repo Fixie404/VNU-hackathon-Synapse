@@ -1,6 +1,8 @@
-# MedIndex local server + Kimi proxy
+# Synapse local server + Kimi proxy
 
-`proxy.py` serves the static site and turns the assistant into **MedIndex Assistant**, a medical-information chatbot powered by Kimi (Moonshot AI).
+Synapse was formerly called MedIndex. Some technical names keep the old name on purpose: the CSRF header value `X-Requested-With: MedIndex`, the `mi_session` cookie, the `server/data/medindex.db` file, the `MEDINDEX_DB` variable and the distinctions `basis: "medindex_reviews"`.
+
+`proxy.py` serves the static site and turns the assistant into **Synapse Assistant**, a medical-information chatbot powered by Kimi (Moonshot AI).
 It also serves the account API (`api.py`, `auth.py`, `db.py`): sign-up/login, doctor reviews, a demo Premium subscription, a metadata-only "cloud" and saved chats, stored in SQLite.
 It uses only the Python 3 standard library, so there is nothing to install.
 
@@ -111,9 +113,11 @@ Errors look like `{"error": "...", "field": "..."}` (`field` only for input erro
 | `POST /api/auth/login {identifier, password}` | - | 200 `{user}` + new cookie; 401 "Invalid credentials"; 429 |
 | `POST /api/auth/logout` | - | 204, session deleted, cookie cleared |
 | `GET /api/me` | - | `{user: null}` or `{user: {id, displayName, identifierType, identifierMasked, premium: {active, plan, since, renewsAt}}}` |
-| `GET /api/reviews/summary` | - | `{ratings: {"<doctorId>": {avg, count}}}` |
-| `GET /api/reviews?doctorId=N` | - | `{doctorId, total, shown, limited, limit, mine}`: anonymous and Regular get the newest 5, Premium all (enforced on the server). `author` is masked ("Ana P." / "User #12") |
+| `GET /api/reviews/summary` | - | `{ratings: {"<doctorId>": {avg, count}}, demo}`: `demo` is true when the DB holds any synthetic demo reviews |
+| `GET /api/reviews?doctorId=N` | - | `{doctorId, total, shown, limited, limit, mine}`: anonymous and Regular get the newest 5, Premium all (enforced on the server). `author` is masked ("Ana P." / "User #12"); every shown review has `demo: true|false` |
 | `POST /api/reviews {doctorId, stars, comment?}` | user | 201 `{review}`; 401; 409 already reviewed; 400 unknown doctor (ids parsed from `data/doctors.js`) or bad stars/comment |
+| `GET /api/reviews/mine` | user | 200 `{reviews: [{id, doctorId, stars, comment, createdAt}]}`: the caller's own reviews only, newest first; 401 when logged out |
+| `DELETE /api/reviews/<id>` | user | 204 when the review exists **and** belongs to the caller; otherwise 404 (another user's review looks exactly like a missing one; non-ASCII-digit id -> 404); 401 logged out; 403 without the CSRF header. Afterwards the user can review that doctor again |
 | `GET /api/premium/plans` | - | monthly 5.99 USD, yearly 65.99 USD |
 | `POST /api/premium/checkout {plan, card: {name, number, exp: "MM/YY", cvc}}` | user | 200 `{premium}`; 400 `{error, field: "card.number"...}`. Format checks only (Luhn, future expiry, 3-4 digit CVC). **Card data is never stored or logged.** Creates "ChatBot History" |
 | `POST /api/premium/cancel` | user | 200 `{premium}` with `active: false` |
@@ -124,14 +128,30 @@ Errors look like `{"error": "...", "field": "..."}` (`field` only for input erro
 | `GET /api/favorites` | Premium | `{doctorIds: [int]}`, newest first |
 | `POST /api/favorites {doctorId}` | Premium | 201 `{doctorIds}` when added, 200 `{doctorIds}` if it already was a favourite (idempotent); 400 `field: "doctorId"` unless it is an int or ASCII-digit string that exists in `data/doctors.js`; 400 past 500 favourites |
 | `DELETE /api/favorites/<doctorId>` | Premium | 200 `{doctorIds}`, also when it was not a favourite (non-digit id -> 404) |
-| `GET /api/distinctions` | Premium | `{threshold: 4.5, doctorIds: [int], basis: "medindex_reviews"}`: doctors whose MedIndex reviews average >= 4.5 (at least 1 review), sorted by id |
+| `GET /api/distinctions` | Premium | `{threshold: 4.5, doctorIds: [int], basis: "medindex_reviews"}`: doctors whose Synapse reviews average >= 4.5 (at least 1 review), sorted by id |
 
 Saved **assistant** turns are re-checked at write time with the same output filter as Kimi replies (`sanitize_reply`: doses, medication changes, doctor names, phones, prices and links removed, 911 -> 112; a reply with nothing left gets a 400), and `meta` is reduced to `{redFlag (strict bool, forced true on emergency wording), suggestions: [{specialty (dataset list only), confidence, confidenceScore 0-100}] (max 3, none with a red flag)}`. User turns are stored as plain text without meta.
 Logged out -> 401, not Premium -> 403 (Premium is inactive when cancelled or when `renews_at` has passed). Every object is looked up together with the session's user id, so another user's id gives 404.
 The cloud stores **metadata only**: no file content is ever accepted, and nothing is allocated. `usedBytes` = `SUM(size_bytes)` of the files + the UTF-8 bytes of all saved chat messages (content + meta), which are also each chat's `size`.
 Limits: 100 folders, 2000 files, 500 chats per user, 500 messages per chat, and 20 MB of saved chat text per user (then 413 "Chat history storage full"). `folderId: null` puts a file at the top level.
 **Favourites** (table `favorites(user_id, doctor_id, created_at)`, migration 2) store doctor ids only, never doctor data; ids that disappear from `data/doctors.js` are not returned. They belong to the session user (no endpoint takes a user id). They are kept when Premium lapses but return 403 until Premium is active again, then the same list comes back.
-The **Premium distinction** is never stored: every request recomputes `AVG(stars) >= 4.5` from the MedIndex `reviews` table (exactly 4.5 qualifies), so a new review changes it immediately. Published or external ratings are never used.
+The **Premium distinction** is never stored: every request recomputes `AVG(stars) >= 4.5` from the Synapse `reviews` table (exactly 4.5 qualifies), so a new or deleted review changes it immediately (as it does the summary and the per-doctor list). Published or external ratings are never used.
+
+## Demo reviews for the pitch
+
+**Synthetic data, for the presentation only.** `server/seed_demo_reviews.py` writes made-up reviews attached to the real doctor ids, so it must never run against the real database and its output must never be published.
+
+```sh
+python3 server/seed_demo_reviews.py                 # seeds server/data/demo.db (seed 42); --seed N, --db PATH
+MEDINDEX_DB=server/data/demo.db python3 server/proxy.py
+python3 server/seed_demo_reviews.py --remove        # deletes all demo reviews + demo accounts + both export files
+```
+
+- 10 demo accounts `demo_reviewer_01..10` (`users.is_demo = 1`, unusable password hash, login always 401) and exactly one review each for every doctor in `data/doctors.js` (227 x 10 = 2270, `reviews.is_demo = 1`, migration 3). Stars are uniform 1-5 from `random.Random(seed)`, dates spread over the 90 days before today 00:00 UTC, comments are generic bilingual "Demo ..." / "Recenzie demo ..." lines that claim nothing about the doctor. At least 10 RNG-picked doctors get an average >= 4.8 (also counting any real reviews).
+- Deterministic for the same seed and day; re-running replaces the demo reviews (no duplicates); real users' reviews are never touched.
+- Labeled in the API: `GET /api/reviews` gives each review `demo: true|false`, `GET /api/reviews/summary` adds `demo: true`. The frontend shows a "Demo review" badge.
+- Exports: `server/data/demo-reviews.json` (`[{doctorId, reviewer, stars, comment, createdAt}]`) and `data/demo-reviews.js` (`window.DEMO_REVIEWS = {generatedFor: "presentation", ratings, reviews}`) for the server-less static site. Both are gitignored, and the Python server does not serve `data/demo-reviews.js` (fixed static allowlist).
+- Refuses `server/data/medindex.db` unless `--i-know-this-is-the-real-db` is passed. Don't do that, and don't publish the demo DB or the exports (e.g. on GitHub Pages).
 
 ## .env (repo root, gitignored; real environment variables override it)
 
@@ -147,8 +167,8 @@ The **Premium distinction** is never stored: every request recomputes `AVG(stars
 
 - The API key stays on the server. It is never sent to the browser and never written to the log.
 - The server binds to 127.0.0.1 only. The `Host` header must be `127.0.0.1:8000` or `localhost:8000`, which blocks DNS rebinding; anything else gets a 403.
-- Static files come from an **allowlist**: `index.html`, `doctors.html`, `premium.html`, `account.html`, `cloud.html`, `styles.css`, `app.js`, `data/doctors.js`, `data/symptoms.js`, `assistant/*.js`, and one level of `js/<name>.js` and `css/<name>.css` (strict names, matched against the directory listing, regular files only). The `assistant/test-*.html` pages are not served.
-  Paths are compared in lowercase, which is safe on the case-insensitive macOS filesystem. Everything else gets a 404, including `.env`, `server/` (so `server/data/medindex.db` in any spelling), `scraper/`, `.dev/` and directory listings.
+- Static files come from an **allowlist**: `index.html`, `doctors.html`, `premium.html`, `account.html`, `cloud.html`, `styles.css`, `app.js`, `data/doctors.js`, `data/symptoms.js`, `assistant/*.js`, one level of `js/<name>.js` and `css/<name>.css`, and `assets/<name>.png` (logos, flat, served as `image/png`) (strict names `[a-z0-9_-]{1,64}`, matched against the directory listing, regular files only, looked up per request). `/favicon.ico` serves `assets/synapse-logo-64.png` as `image/png` when that file exists, otherwise 404. The `assistant/test-*.html` pages are not served.
+  Paths are compared in lowercase, which is safe on the case-insensitive macOS filesystem. Everything else gets a 404, including `.env`, `server/` (so `server/data/medindex.db` in any spelling), `scraper/` (and `scraper/cache/`), `.dev/`, directory listings, other file types under `assets/`, and traversal or encoding tricks such as `/assets/../server/proxy.py` or `/assets/%2e%2e/...`.
 - `/api/chat` accepts only Origin `http://127.0.0.1:8000` or `http://localhost:8000`, or no Origin at all. `null`, `file://` and every other origin get a 403 and no CORS headers.
 - Each socket read times out after 5 s, and at most 32 requests are handled at once.
   **Accepted limitation:** a local client that sends one byte every few seconds over many connections can still use up the 32 slots. The server binds to 127.0.0.1 only, so only programs on this machine can do this.
@@ -161,7 +181,7 @@ The **Premium distinction** is never stored: every request recomputes `AVG(stars
 - Login and sign-up are rate limited in memory: 10 per identifier and 30 per IP in 5 minutes, then 429. A slot is reserved atomically **before** the scrypt check (so parallel guesses can't exceed the limit) and refunded when a login succeeds; every sign-up attempt counts. Login errors are always "Invalid credentials".
 - At most 10 sessions per user; the oldest are deleted on login.
 - Text that is not valid UTF-8 (including lone surrogates such as `"\ud800"` in JSON) gets a 400, never a 500. Control, zero-width and bidi-override characters are stripped from names, comments and messages.
-- Every response (static and API) carries `X-Frame-Options: DENY`, `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'` (no inline scripts, handlers or style attributes on the pages), `X-Content-Type-Options: nosniff` and `Referrer-Policy: same-origin`.
+- Every response (static, logos and API) carries `X-Frame-Options: DENY`, `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'` (no inline scripts, handlers or style attributes on the pages), `X-Content-Type-Options: nosniff` and `Referrer-Policy: same-origin`.
 - **CSRF:** state-changing requests need `X-Requested-With: MedIndex` (a custom header, so a cross-site request needs a CORS preflight, which is denied), an allowed or missing Origin, and a same-origin `Sec-Fetch-Site` when sent.
 - Identity and Premium come only from the session; ids or flags in the request are never trusted.
 - API errors never contain stack traces; the log line has method, path, status and a short note, never bodies, passwords, cookies, tokens or card data.

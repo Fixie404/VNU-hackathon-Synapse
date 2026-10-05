@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""MedIndex local server + thin LLM proxy (Python 3 standard library only).
+"""Synapse local server + thin LLM proxy (Python 3 standard library only).
 
 Run from the repo root:   python3 server/proxy.py
 - Serves the repo's static files on http://127.0.0.1:8000 (localhost only).
 - POST /api/chat forwards the recent conversation ({messages, facts, turn,
   availableSpecialties, lang}) to Kimi (Moonshot AI, OpenAI-compatible chat
-  completions) with a fixed server-side system prompt ("MedIndex Assistant") and
+  completions) with a fixed server-side system prompt ("Synapse Assistant") and
   returns ONLY a validated JSON object: {reply, redFlag, facts, asking, suggestions}.
   The model gathers WHO / HOW LONG / HOW STRONG conversationally (one open question at a
   time, no multiple choice) and recommends by the 10th user message of a round.
@@ -128,7 +128,7 @@ def build_static_map():
     """Allowlist of servable files: lowercase URL path -> real file path."""
     m = {}
     for rel in ("index.html", "doctors.html", "premium.html", "account.html", "cloud.html",
-                "styles.css", "app.js", "data/doctors.js", "data/symptoms.js", "favicon.ico"):
+                "styles.css", "app.js", "data/doctors.js", "data/symptoms.js"):
         fp = os.path.join(REPO_ROOT, rel)
         if os.path.isfile(fp):
             m["/" + rel.lower()] = fp
@@ -143,15 +143,19 @@ def build_static_map():
 
 
 STATIC_FILES = build_static_map()
-STATIC_DIRS = {"js": re.compile(r"^[a-z0-9_-]{1,64}\.js$"), "css": re.compile(r"^[a-z0-9_-]{1,64}\.css$")}
+STATIC_DIRS = {"js": re.compile(r"^[a-z0-9_-]{1,64}\.js$"), "css": re.compile(r"^[a-z0-9_-]{1,64}\.css$"),
+               "assets": re.compile(r"^[a-z0-9_-]{1,64}\.png$")}   # logos: /assets/<name>.png (flat)
+FAVICON = os.path.join(REPO_ROOT, "assets", "synapse-logo-64.png")  # /favicon.ico (served as image/png)
 STATIC_PAGES = ("/index.html", "/doctors.html", "/premium.html", "/account.html", "/cloud.html")
 
 
 def resolve_static(path):
-    """Lowercase URL path -> real file, or None. Fixed allowlist plus /js/<name>.js and /css/<name>.css
-    (one level, strict names, matched against a directory listing, must be a regular file inside the dir).
-    Pages and js/css files are looked up per request, so files added after startup are served too."""
+    """Lowercase URL path -> real file, or None. Fixed allowlist plus /js/<name>.js, /css/<name>.css and
+    /assets/<name>.png (one level, strict names, matched against a directory listing, must be a regular file inside the dir).
+    Pages and js/css/assets files are looked up per request, so files added after startup are served too."""
     fp = STATIC_FILES.get(path)
+    if fp is None and path == "/favicon.ico":
+        return FAVICON if os.path.isfile(FAVICON) and not os.path.islink(FAVICON) else None
     if fp is None and path in STATIC_PAGES:
         cand = os.path.join(REPO_ROOT, path[1:])
         fp = cand if os.path.isfile(cand) else None
@@ -192,7 +196,7 @@ SSL_CTX = make_ssl_context()
 
 
 # ---------------------------------------------------------------- prompt
-SYSTEM_PROMPT = """You are "MedIndex Assistant", a friendly health-information helper on MedIndex, a website that lists private doctors in Bucharest, Romania. You talk with patients (not clinicians).
+SYSTEM_PROMPT = """You are "Synapse Assistant", a friendly health-information helper on Synapse, a website that lists private doctors in Bucharest, Romania. You talk with patients (not clinicians).
 
 What you MAY do:
 - Give general health information in plain words.
@@ -620,7 +624,7 @@ def call_model(messages):
 
 # ---------------------------------------------------------------- HTTP
 class Handler(SimpleHTTPRequestHandler):
-    server_version = "MedIndex"
+    server_version = "Synapse"
     sys_version = ""
     timeout = SOCKET_TIMEOUT  # slow or idle clients are dropped
 
@@ -689,6 +693,11 @@ class Handler(SimpleHTTPRequestHandler):
 
     def translate_path(self, path):
         return getattr(self, "_static_fp", None) or os.path.join(REPO_ROOT, "__not_served__")
+
+    def guess_type(self, path):
+        if path.lower().endswith(".png"):  # logos and /favicon.ico (a PNG file)
+            return "image/png"
+        return super().guess_type(path)
 
     def api_path(self):
         return self.path.split("?", 1)[0].split("#", 1)[0]
@@ -828,7 +837,7 @@ def main():
         sys.stderr.write("warning: no specialties found in data/doctors.js; /api/chat will return 400\n")
     db.init(auth.hash_password)  # migrations + idempotent admin seed; never resets the database
     httpd = BoundedServer((HOST, PORT), Handler)
-    sys.stderr.write("MedIndex on http://%s:%d  (model %s via %s; db %s)\n" % (HOST, PORT, MODEL, BASE_URL,
+    sys.stderr.write("Synapse on http://%s:%d  (model %s via %s; db %s)\n" % (HOST, PORT, MODEL, BASE_URL,
                                                                                os.path.relpath(db.DB_PATH, REPO_ROOT)))
     try:
         httpd.serve_forever()

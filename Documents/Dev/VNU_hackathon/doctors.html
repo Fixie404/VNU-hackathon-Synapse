@@ -3,8 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title data-i18n="meta.doctors.title">MedIndex — Find Doctors</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <title data-i18n="meta.doctors.title">Synapse — Find Doctors</title>
   <meta name="description" data-i18n-attr="content:meta.doctors.desc" content="Compare private doctors in Bucharest by specialty, price, seniority, distance and CNAS coverage.">
+  <link rel="icon" type="image/png" href="assets/synapse-logo-64.png">
+  <link rel="apple-touch-icon" href="assets/synapse-logo-192.png">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="css/site.css">
   <link rel="stylesheet" href="css/transitions.css">
@@ -14,7 +17,7 @@
 
   <header id="site-header" class="mx-header">
     <div class="mx-header-inner">
-      <a class="mx-brand" href="index.html">MedIndex</a>
+      <a class="mx-brand" href="index.html">Synapse</a>
       <nav aria-label="Main" data-i18n-attr="aria-label:nav.main"><a href="index.html" data-i18n="nav.home">Home</a> · <a href="doctors.html" data-i18n="nav.doctors">Find Doctors</a> · <a href="premium.html" data-i18n="nav.premium">Premium</a> · <a href="account.html" data-i18n="nav.account">Account</a></nav>
     </div>
   </header>
@@ -60,6 +63,18 @@
         </div>
 
         <div class="field">
+          <label for="min-rating" data-i18n="dir.minRating">Minimum rating</label>
+          <select id="min-rating" name="minRating" aria-describedby="min-rating-help">
+            <option value="0" data-i18n="dir.minRating.any">Any</option>
+            <option value="3">3★+</option>
+            <option value="4">4★+</option>
+            <option value="4.5">4.5★+</option>
+            <option value="4.8">4.8★+</option>
+          </select>
+          <p class="help" id="min-rating-help" hidden></p>
+        </div>
+
+        <div class="field">
           <label for="sort" data-i18n="dirpage.sortBy">Sort by</label>
           <select id="sort" name="sort">
             <option value="recommended" data-i18n="dirpage.sort.recommended">Recommended</option>
@@ -67,6 +82,7 @@
             <option value="price-desc" data-i18n="dirpage.sort.priceDesc">Price: High to Low</option>
             <option value="nearest" data-i18n="dirpage.sort.nearest">Nearest first</option>
             <option value="senior" data-i18n="dirpage.sort.senior">Most senior first</option>
+            <option value="rated" data-i18n="dir.sort.rated">Highest rated</option>
             <option value="best" disabled data-i18n="dirpage.sort.best">Best match (use the assistant first)</option>
           </select>
           <p class="help hint" id="sort-hint" hidden data-i18n="dirpage.sortHint">Share your location or pick an area to sort by distance.</p>
@@ -115,6 +131,8 @@
     </div>
   </footer>
 
+  <script src="js/config.js" defer></script>
+
   <script src="js/i18n.js" defer></script>
   <script src="js/i18n-shell.js" defer></script>
   <script src="js/i18n-specialties.js" defer></script>
@@ -125,6 +143,7 @@
   <script src="data/doctors.js" defer></script>
   <script src="data/symptoms.js" defer></script>
   <script src="assistant/engine.js" defer></script>
+  <script src="data/demo-reviews.js" defer></script>
   <script src="assistant/reviews.js" defer></script>
   <script src="assistant/ranking.js" defer></script>
   <script src="app.js" defer></script>

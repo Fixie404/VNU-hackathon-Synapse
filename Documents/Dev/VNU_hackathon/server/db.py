@@ -1,4 +1,4 @@
-"""MedIndex SQLite storage (Python standard library only).
+"""Synapse SQLite storage (Python standard library only).
 
 The database lives at server/data/medindex.db (override with the MEDINDEX_DB environment
 variable, e.g. for tests). The directory is created with mode 700 and the file is chmod 600.
@@ -100,6 +100,12 @@ MIGRATIONS = [
         PRIMARY KEY (user_id, doctor_id)
     );
     CREATE INDEX favorites_user ON favorites(user_id, created_at);
+    """,
+    # 3: demo flags for the synthetic pitch-demo reviews (server/seed_demo_reviews.py); default 0 = real
+    """
+    ALTER TABLE users ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE reviews ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0;
+    CREATE INDEX reviews_demo ON reviews(is_demo)
     """,
 ]
 

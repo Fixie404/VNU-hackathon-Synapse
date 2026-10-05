@@ -3,8 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title data-i18n="meta.premium.title">MedIndex — Premium</title>
-  <meta name="description" data-i18n-attr="content:meta.premium.desc" content="MedIndex plans: Regular is free. Premium adds all written reviews, a 5 GB Secure Medical Cloud (demo) and saved chatbot history.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <title data-i18n="meta.premium.title">Synapse — Premium</title>
+  <meta name="description" data-i18n-attr="content:meta.premium.desc" content="Synapse plans: Regular is free. Premium adds all written reviews, a 5 GB Secure Medical Cloud (demo) and saved chatbot history.">
+  <link rel="icon" type="image/png" href="assets/synapse-logo-64.png">
+  <link rel="apple-touch-icon" href="assets/synapse-logo-192.png">
   <link rel="stylesheet" href="css/site.css">
   <link rel="stylesheet" href="css/transitions.css">
 </head>
@@ -13,7 +16,7 @@
 
   <header id="site-header" class="mx-header">
     <div class="mx-header-inner">
-      <a class="mx-brand" href="index.html">MedIndex</a>
+      <a class="mx-brand" href="index.html">Synapse</a>
       <nav aria-label="Main" data-i18n-attr="aria-label:nav.main"><a href="index.html" data-i18n="nav.home">Home</a> · <a href="doctors.html" data-i18n="nav.doctors">Find Doctors</a> · <a href="premium.html" data-i18n="nav.premium">Premium</a> · <a href="account.html" data-i18n="nav.account">Account</a></nav>
     </div>
   </header>
@@ -46,7 +49,7 @@
           <p class="mx-plan-price"><span class="mx-plan-amount" data-i18n="plans.free">Free</span><span class="mx-plan-per" data-i18n="premium.forever">forever</span></p>
           <ul class="mx-plan-list">
             <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="plans.f.search">Search and filters</span></li>
-            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="plans.f.chatbot">MedIndex Assistant chatbot</span></li>
+            <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="plans.f.chatbot">Synapse Assistant chatbot</span></li>
             <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="plans.f.ratings">Star ratings</span></li>
             <li><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="plans.f.leaveReviews">Leave reviews</span></li>
             <li class="mx-limited"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2.4"/></svg><span data-i18n="plans.f.read5">Read up to 5 written reviews per doctor</span></li>
@@ -78,7 +81,7 @@
           </thead>
           <tbody>
             <tr><th scope="row" data-i18n="premium.cmp.search">Search, filters and sorting</th><td class="mx-yes" data-i18n="premium.cmp.included">Included</td><td class="mx-yes" data-i18n="premium.cmp.included">Included</td></tr>
-            <tr><th scope="row" data-i18n="plans.f.chatbot">MedIndex Assistant chatbot</th><td class="mx-yes" data-i18n="premium.cmp.included">Included</td><td class="mx-yes" data-i18n="premium.cmp.included">Included</td></tr>
+            <tr><th scope="row" data-i18n="plans.f.chatbot">Synapse Assistant chatbot</th><td class="mx-yes" data-i18n="premium.cmp.included">Included</td><td class="mx-yes" data-i18n="premium.cmp.included">Included</td></tr>
             <tr><th scope="row" data-i18n="plans.f.ratings">Star ratings</th><td class="mx-yes" data-i18n="premium.cmp.included">Included</td><td class="mx-yes" data-i18n="premium.cmp.included">Included</td></tr>
             <tr><th scope="row" data-i18n="plans.f.leaveReviews">Leave reviews</th><td class="mx-yes" data-i18n="premium.cmp.included">Included</td><td class="mx-yes" data-i18n="premium.cmp.included">Included</td></tr>
             <tr><th scope="row" data-i18n="premium.cmp.written">Written reviews per doctor</th><td data-i18n="premium.cmp.upTo5">Up to 5</td><td class="mx-yes" data-i18n="premium.cmp.all">All</td></tr>
@@ -96,7 +99,7 @@
         </details>
         <details>
           <summary data-i18n="premium.faq.q2">What is the Secure Medical Cloud?</summary>
-          <p data-i18n="premium.faq.a2">A private 5 GB space in your account for medical documents such as test results and letters, plus your saved chats with MedIndex Assistant. In this demo only the file details (name, type and size) are saved, not the files themselves.</p>
+          <p data-i18n="premium.faq.a2">A private 5 GB space in your account for medical documents such as test results and letters, plus your saved chats with Synapse Assistant. In this demo only the file details (name, type and size) are saved, not the files themselves.</p>
         </details>
         <details>
           <summary data-i18n="premium.faq.q3">Can I cancel?</summary>
@@ -197,9 +200,9 @@
 
   <footer class="mx-footer">
     <div class="mx-wrap mx-footer-inner">
-      <a class="mx-brand" href="index.html" aria-label="MedIndex home" data-i18n-attr="aria-label:nav.brandHome">
-        <svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true" focusable="false"><rect x="1" y="1" width="38" height="38" rx="10" fill="currentColor"/><path d="M16 9h8v7h7v8h-7v7h-8v-7H9v-8h7z" fill="#0b1630"/></svg>
-        <span>MedIndex</span>
+      <a class="mx-brand" href="index.html" aria-label="Synapse home" data-i18n-attr="aria-label:nav.brandHome">
+        <img class="mx-logo" src="assets/synapse-logo-64.png" srcset="assets/synapse-logo-64.png 1x, assets/synapse-logo-192.png 2x, assets/synapse-logo-192.png 3x" width="30" height="30" alt="">
+        <span>Synapse</span>
       </a>
       <nav aria-label="Footer" data-i18n-attr="aria-label:footer.nav">
         <ul class="mx-footer-links">
@@ -211,10 +214,12 @@
       </nav>
       <div class="mx-footer-legal">
         <p><strong data-i18n="footer.dataTitle">About the data.</strong> <span data-i18n="footer.dataText">Data collected from public pages of each network. Prices may change; confirm with the clinic before booking.</span></p>
-        <p><strong data-i18n="footer.aiTitle">About the AI.</strong> <span data-i18n="footer.aiText">MedIndex Assistant gives general health information, not a diagnosis, and its advice may be wrong. It never replaces a doctor. In an emergency, call 112.</span></p>
+        <p><strong data-i18n="footer.aiTitle">About the AI.</strong> <span data-i18n="footer.aiText">Synapse Assistant gives general health information, not a diagnosis, and its advice may be wrong. It never replaces a doctor. In an emergency, call 112.</span></p>
       </div>
     </div>
   </footer>
+
+  <script src="js/config.js" defer></script>
 
   <script src="js/i18n.js" defer></script>
   <script src="js/i18n-shell.js" defer></script>

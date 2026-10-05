@@ -1,4 +1,4 @@
-/* MedIndex – shared site shell (header, footer, home, premium).
+/* Synapse – shared site shell (header, footer, home, premium).
    Tokens extend styles.css (same accent family). System fonts only. */
 
 :root {
@@ -77,6 +77,7 @@
 }
 .mx-brand:hover { color: var(--mx-text); }
 .mx-brand svg { color: var(--mx-accent); flex: none; }
+.mx-brand .mx-logo { display: block; flex: none; width: 34px; height: 34px; object-fit: contain; }
 
 .mx-burger {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -173,6 +174,7 @@
 .mx-footer-inner { padding-top: 48px; padding-bottom: 96px; display: grid; gap: 28px; }
 .mx-footer .mx-brand { color: #fff; margin: 0; }
 .mx-footer .mx-brand svg { color: #6ea2ef; }
+.mx-footer .mx-brand .mx-logo { width: 30px; height: 30px; padding: 3px; box-sizing: content-box; background: rgba(255, 255, 255, 0.94); border-radius: 9px; }
 .mx-footer a { color: #cfe0ff; }
 .mx-footer a:hover { color: #fff; }
 .mx-footer :focus-visible { outline-color: #9cc0ff; }
@@ -507,3 +509,10 @@ html.mx-modal-open, html.mx-modal-open body { overflow: hidden; }
   .mx-lang-btn .mx-lang-name { display: none; }
   .mx-lang-btn .mx-lang-code { display: inline; }
 }
+
+/* 404 page */
+.mx-notfound { max-width: 640px; }
+.mx-notfound h1 { font-size: clamp(1.8rem, 5vw, 2.6rem); letter-spacing: -0.03em; margin: 0 0 12px; }
+.mx-notfound h2 { margin-top: 40px; font-size: 1.5rem; }
+.mx-notfound p { margin: 0 0 16px; }
+.mx-notfound-note { margin-top: 40px; color: var(--mx-muted); font-size: 0.95rem; }

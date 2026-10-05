@@ -140,7 +140,7 @@
   }
 
   /* ---------- gate ---------- */
-  var gates = ["cl-loading", "cl-offline", "cl-error", "cl-signin", "cl-upsell", "cl-app"];
+  var gates = ["cl-loading", "cl-offline", "cl-static", "cl-error", "cl-signin", "cl-upsell", "cl-app"];
   function gate(id) { for (var i = 0; i < gates.length; i++) show($(gates[i]), gates[i] === id); }
 
   function handleGateError(err) {
@@ -678,6 +678,7 @@
   document.addEventListener("medindex:auth", function () {
     // Session changed (header sign-out, premium change): re-check access.
     if (!API || !API.isOnline() || !$("cl-loading").hidden) return;
+    if (typeof API.isStatic === "function" && (API.isStatic() || API.mode() === "pending")) return;
     load();
   });
 
@@ -816,6 +817,9 @@
   /* ---------- start ---------- */
   function start() {
     if (!API || !API.isOnline()) { gate("cl-offline"); return; }
+    // Wait for the one-per-page backend probe; static hosting gets the browse-only notice.
+    if (typeof API.mode === "function" && API.mode() === "pending") { gate("cl-loading"); API.ready(start); return; }
+    if (typeof API.isStatic === "function" && API.isStatic()) { gate("cl-static"); return; }
     var h = readHash();
     load(function (err) {
       if (err) return;

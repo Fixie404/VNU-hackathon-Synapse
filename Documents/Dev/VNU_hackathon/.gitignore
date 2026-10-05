@@ -3,3 +3,14 @@ __pycache__/
 .env
 .dev/
 server/data/
+scraper/cache/
+*.db
+*.db-journal
+*.db-wal
+.DS_Store
+.env*
+*.pyc
+*.log
+
+# synthetic pitch-demo reviews (server/seed_demo_reviews.py), never published
+data/demo-reviews.js

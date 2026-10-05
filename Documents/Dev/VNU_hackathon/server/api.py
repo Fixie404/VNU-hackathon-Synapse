@@ -1,4 +1,4 @@
-"""MedIndex account API: auth, reviews, premium, cloud (metadata only), saved chats, favourites, distinctions.
+"""Synapse account API: auth, reviews, premium, cloud (metadata only), saved chats, favourites, distinctions.
 
 Called from proxy.py for every /api/* path except /api/chat. Identity and premium status come
 ONLY from the session cookie; user ids or premium flags sent by the client are never used.
@@ -17,7 +17,7 @@ import db
 REPO_ROOT = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 MAX_BODY = 32 * 1024
 CSRF_HEADER = "X-Requested-With"
-CSRF_VALUE = "MedIndex"
+CSRF_VALUE = "MedIndex"  # technical value kept after the Synapse rename (the frontend sends it)
 
 QUOTA_BYTES = 5 * 1024 ** 3          # 5 GiB = 5368709120 (metadata only, nothing is allocated)
 SYSTEM_FOLDER = "ChatBot History"
@@ -242,7 +242,7 @@ def login(c):
     if kind and len(pw) <= auth.PW_MAX:
         u = c.conn.execute("SELECT * FROM users WHERE %s = ?" % kind, (value,)).fetchone()
     ok = auth.verify_password(pw[:auth.PW_MAX], u["pw_hash"] if u else None)
-    if not ok or u is None:
+    if not ok or u is None or u["is_demo"]:  # synthetic demo reviewer accounts can never log in
         raise ApiError(401, "Invalid credentials")
     auth.refund(slots)  # a successful login does not use up the failure budget
     token = auth.create_session(c.conn, u["id"], c.token)
@@ -272,7 +272,9 @@ def parse_doctor_id(v):
 
 def review_summary(c):
     rows = c.conn.execute("SELECT doctor_id, AVG(stars) AS a, COUNT(*) AS n FROM reviews GROUP BY doctor_id").fetchall()
-    return 200, {"ratings": {str(r["doctor_id"]): {"avg": round(r["a"], 2), "count": r["n"]} for r in rows}}
+    demo = c.conn.execute("SELECT EXISTS (SELECT 1 FROM reviews WHERE is_demo = 1)").fetchone()[0]
+    return 200, {"ratings": {str(r["doctor_id"]): {"avg": round(r["a"], 2), "count": r["n"]} for r in rows},
+                 "demo": bool(demo)}
 
 
 def reviews_list(c):
@@ -280,14 +282,15 @@ def reviews_list(c):
     u = c.user()
     premium = bool(u) and premium_info(c.conn, u["id"])["active"]
     total = c.conn.execute("SELECT COUNT(*) FROM reviews WHERE doctor_id = ?", (did,)).fetchone()[0]
-    sql = ("SELECT r.id, r.user_id, r.stars, r.comment, r.created_at, u.display_name FROM reviews r "
+    sql = ("SELECT r.id, r.user_id, r.stars, r.comment, r.created_at, r.is_demo, u.display_name FROM reviews r "
            "JOIN users u ON u.id = r.user_id WHERE r.doctor_id = ? ORDER BY r.created_at DESC, r.id DESC")
     params = (did,)
     if not premium:  # the limit is enforced here, server-side
         sql += " LIMIT ?"
         params = (did, REVIEW_LIMIT)
     shown = [{"id": r["id"], "stars": r["stars"], "comment": r["comment"], "createdAt": iso(r["created_at"]),
-              "author": author_name(r["user_id"], r["display_name"])} for r in c.conn.execute(sql, params)]
+              "author": author_name(r["user_id"], r["display_name"]), "demo": bool(r["is_demo"])}
+             for r in c.conn.execute(sql, params)]
     mine = None
     if u:
         r = c.conn.execute("SELECT id, stars, comment, created_at FROM reviews WHERE doctor_id = ? AND user_id = ?",
@@ -315,6 +318,24 @@ def review_create(c):
         raise ApiError(409, "You already reviewed this doctor")
     return 201, {"review": {"id": cur.lastrowid, "doctorId": did, "stars": stars, "comment": comment,
                             "createdAt": iso(now), "author": author_name(u["id"], u["display_name"])}}
+
+
+def reviews_mine(c):
+    """The caller's own reviews only, newest first."""
+    u = c.require_user()
+    rows = c.conn.execute("SELECT id, doctor_id, stars, comment, created_at FROM reviews WHERE user_id = ? "
+                          "ORDER BY created_at DESC, id DESC", (u["id"],)).fetchall()
+    return 200, {"reviews": [{"id": r["id"], "doctorId": r["doctor_id"], "stars": r["stars"], "comment": r["comment"],
+                              "createdAt": iso(r["created_at"])} for r in rows]}
+
+
+def review_delete(c, review_id):
+    """204 only when the review exists AND belongs to the caller; otherwise 404 (never reveals others')."""
+    u = c.require_user()
+    cur = c.conn.execute("DELETE FROM reviews WHERE id = ? AND user_id = ?", (review_id, u["id"]))
+    if cur.rowcount == 0:
+        raise ApiError(404, "Not found")
+    return 204, None
 
 
 # ---------------------------------------------------------------- favourites + distinctions (Premium)
@@ -357,7 +378,7 @@ def favorite_delete(c, did):
 
 
 def distinctions(c):
-    """Live from the MedIndex reviews table only (never any published/external rating)."""
+    """Live from the Synapse reviews table (basis "medindex_reviews") only (never any published/external rating)."""
     c.require_premium()
     rows = c.conn.execute("SELECT doctor_id FROM reviews GROUP BY doctor_id "
                           "HAVING COUNT(*) >= 1 AND SUM(stars) >= ? * COUNT(*) ORDER BY doctor_id",
@@ -723,6 +744,8 @@ ROUTES = [
     ("POST", r"/api/auth/logout", logout),
     ("GET", r"/api/me", me),
     ("GET", r"/api/reviews/summary", review_summary),
+    ("GET", r"/api/reviews/mine", reviews_mine),
+    ("DELETE", r"/api/reviews/" + ID, review_delete),
     ("GET", r"/api/reviews", reviews_list),
     ("POST", r"/api/reviews", review_create),
     ("GET", r"/api/premium/plans", premium_plans),

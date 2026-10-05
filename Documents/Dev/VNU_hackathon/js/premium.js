@@ -21,6 +21,7 @@
     return n;
   }
   function api() { return window.MedIndexAPI || null; }
+  function staticSite() { var A = api(); return !!(A && typeof A.isStatic === "function" && A.isStatic()); }
   var I = window.MedIndexI18n || null;
   function T(k, v) { return I ? I.t(k, v) : k; }
   function money(v) {
@@ -111,6 +112,10 @@
       h.textContent = auth.user.displayName ? T("premium.status.hiRegular", { name: String(auth.user.displayName) }) : T("premium.status.hiRegularAnon");
       box.appendChild(h);
       box.appendChild(el("p", null, T("premium.status.upgradeText")));
+    } else if (auth.offline && staticSite()) {
+      h.textContent = T("common.staticShort");
+      box.appendChild(h);
+      box.appendChild(el("p", null, T("common.staticNotice")));
     } else if (auth.offline) {
       h.textContent = T("premium.status.offline");
       box.appendChild(h);
@@ -179,6 +184,12 @@
       btn = el("button", "mx-btn mx-btn-primary", T("premium.cta.upgrade", { price: money(PRICES[plan]) + T(plan === "yearly" ? "premium.cta.perYr" : "premium.cta.perMo") }));
       btn.type = "button";
       btn.addEventListener("click", function () { openCheckout(btn); });
+      reg.textContent = T("plans.startSearching");
+    } else if (auth.offline && staticSite()) {
+      // Browse-only demo (static hosting): checkout is disabled.
+      btn = el("button", "mx-btn mx-btn-primary", T("premium.cta.static"));
+      btn.type = "button";
+      btn.disabled = true;
       reg.textContent = T("plans.startSearching");
     } else {
       btn = el("a", "mx-btn mx-btn-primary", T(auth.offline ? "premium.cta.offline" : "premium.cta.signIn"));

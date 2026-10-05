@@ -1,4 +1,4 @@
-"""MedIndex accounts: password hashing, sessions, identifier normalization, rate limiting.
+"""Synapse accounts: password hashing, sessions, identifier normalization, rate limiting.
 
 - Passwords: hashlib.scrypt (n=2**14, r=8, p=1, 16-byte random salt), stored as
   "scrypt$n$r$p$salt_hex$hash_hex" and verified with hmac.compare_digest.

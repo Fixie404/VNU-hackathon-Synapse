@@ -1004,6 +1004,31 @@ html.mi-rate-open, html.mi-rate-open body { overflow: hidden; }
 .mi-reviews-limited .mi-premium-link { color: var(--gold-text); }
 .mi-premium-link:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
 
+/* ---------- Deleting your own review: card link, "Your review" block, confirm dialog ---------- */
+.mi-rated { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.mi-rated-delete {
+  min-height: 44px; padding: 6px 8px; border: 0; background: none; font: inherit; font-size: 0.85rem; font-weight: 650;
+  color: var(--danger); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; border-radius: 6px;
+}
+.mi-rated-delete:hover { color: var(--danger-hover); background: var(--danger-soft); }
+.mi-rated-delete:focus-visible, .mi-own-review-delete:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.mi-rated-delete[disabled], .mi-own-review-delete[disabled] { cursor: progress; opacity: 0.7; }
+.mi-own-review { padding: 12px; border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 6px; }
+.mi-own-review-title { font-size: 0.95rem; font-weight: 750; margin: 0; }
+.mi-own-review-delete { align-self: flex-start; min-height: 44px; color: var(--danger); border-color: #f0b4ae; }
+.mi-own-review-delete:hover { background: var(--danger-soft); }
+.mi-confirm-dialog {
+  width: min(420px, calc(100vw - 32px)); padding: 0; border: 0; border-radius: var(--radius);
+  background: var(--surface); color: var(--text); box-shadow: var(--shadow-hover);
+}
+.mi-confirm-dialog::backdrop { background: rgba(17, 24, 39, 0.5); }
+.mi-confirm-body { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+.mi-confirm-title { margin: 0; font-size: 1.15rem; font-weight: 750; }
+.mi-confirm-text { margin: 0; font-size: 0.92rem; color: var(--text-muted); }
+.mi-confirm-ok { background: var(--danger); border-color: var(--danger); color: #fff; }
+.mi-confirm-ok:hover { background: var(--danger-hover); border-color: var(--danger-hover); }
+.mi-confirm-dialog .btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
 /* ---------- Confidence meter on suggestion cards ---------- */
 .mi-confidence { display: flex; flex-direction: column; gap: 6px; }
 .mi-meter-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
@@ -1120,3 +1145,8 @@ html.mi-rate-open, html.mi-rate-open body { overflow: hidden; }
 .card.is-highlighted:focus { outline: 3px solid var(--accent); }
 .mi-warning-ro-main { display: block; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .fav-btn { transition: none; } }
+
+/* ---------- Minimum rating filter + demo-data note ---------- */
+select:disabled { cursor: not-allowed; color: var(--text-muted); background: var(--surface-2, #f1f3f7); border-color: var(--border); }
+.results-demo-note { flex-basis: 100%; margin: 0; font-size: 0.8rem; color: var(--text-muted); }
+.empty-rating-hint { color: var(--text-muted); }

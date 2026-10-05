@@ -78,9 +78,10 @@
   }
 
   /* ---------- views ---------- */
-  var views = ["acct-offline", "acct-loading", "acct-error", "acct-auth", "acct-profile"];
+  var views = ["acct-offline", "acct-static", "acct-loading", "acct-error", "acct-auth", "acct-profile"];
   function view(id) {
     for (var i = 0; i < views.length; i++) show($(views[i]), views[i] === id);
+    show($("acct-reviews"), id === "acct-profile"); // "My reviews" goes with the signed-in view
   }
 
   function refreshNav() {
@@ -143,10 +144,168 @@
     setText(st, statusMsg || "");
     show(st, !!statusMsg);
     view("acct-profile");
+    loadReviews();
   }
+
+  /* ---------- my reviews (GET /api/reviews/mine, DELETE /api/reviews/<id>) ---------- */
+  var reviewsSeq = 0;
+  var reviewStates = ["my-reviews-loading", "my-reviews-error", "my-reviews-empty", "my-reviews-list"];
+  function reviewsView(id) {
+    for (var i = 0; i < reviewStates.length; i++) show($(reviewStates[i]), reviewStates[i] === id);
+  }
+  function reviewsAnnounce(spec) {
+    var live = $("my-reviews-live");
+    setText(live, "");
+    setTimeout(function () { setText(live, spec); }, 60);
+  }
+  function doctorById(id) {
+    var list = window.DOCTORS;
+    if (!Array.isArray(list)) return null;
+    for (var i = 0; i < list.length; i++) if (list[i] && String(list[i].id) === String(id)) return list[i];
+    return null;
+  }
+  function hospitalName(h) {
+    if (!h) return "";
+    var k = "hospital." + h, s = L.t(k);
+    return !s || s === k ? String(h) : s;
+  }
+  function starText(n) {
+    var s = "";
+    for (var i = 1; i <= 5; i++) s += i <= n ? "★" : "☆";
+    return s;
+  }
+  function elem(tag, className) {
+    var n = document.createElement(tag);
+    if (className) n.className = className;
+    return n;
+  }
+
+  function buildReviewItem(r) {
+    var d = doctorById(r.doctorId);
+    var nameSpec = d ? { raw: d.name } : "account.reviews.gone";
+    var li = elem("li", "acct-review");
+    li.setAttribute("data-review-id", String(r.id));
+    var name = elem("p", "acct-review-doc");
+    setText(name, nameSpec);
+    li.appendChild(name);
+    if (d) {
+      var meta = elem("p", "acct-review-meta");
+      setText(meta, { fn: function () { return [L.specialty(d.specialty), hospitalName(d.hospital)].filter(Boolean).join(" · "); } });
+      li.appendChild(meta);
+    }
+    var head = elem("div", "acct-review-head");
+    var n = Math.max(1, Math.min(5, Math.round(Number(r.stars) || 0)));
+    var stars = elem("span", "acct-review-stars");
+    stars.setAttribute("role", "img");
+    setAttr(stars, "aria-label", { k: "account.reviews.stars", v: { n: { raw: String(n) } } });
+    stars.textContent = starText(n);
+    head.appendChild(stars);
+    if (r.createdAt) {
+      var date = elem("span", "acct-review-date");
+      setText(date, { fn: function () { return formatDate(r.createdAt); } });
+      head.appendChild(date);
+    }
+    li.appendChild(head);
+    if (r.comment) {
+      var c = elem("p", "acct-review-comment");
+      c.textContent = String(r.comment);
+      li.appendChild(c);
+    }
+    var actions = elem("div", "acct-review-actions");
+    if (d) {
+      var a = elem("a", "acct-btn acct-btn-ghost acct-btn-small");
+      a.href = "doctors.html?doctor=" + encodeURIComponent(String(d.id));
+      setText(a, "account.reviews.view");
+      setAttr(a, "aria-label", { k: "account.reviews.viewAria", v: { name: nameSpec } });
+      actions.appendChild(a);
+    }
+    var del = elem("button", "acct-btn acct-btn-danger acct-btn-small acct-review-del");
+    del.type = "button";
+    setText(del, "account.reviews.delete");
+    setAttr(del, "aria-label", { k: "account.reviews.deleteAria", v: { name: nameSpec } });
+    del.setAttribute("aria-haspopup", "dialog");
+    del.addEventListener("click", function () { deleteReview(r, nameSpec, del, li); });
+    actions.appendChild(del);
+    li.appendChild(actions);
+    return li;
+  }
+
+  function renderReviews(list) {
+    var ul = $("my-reviews-list");
+    ul.replaceChildren();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].id != null) ul.appendChild(buildReviewItem(list[i]));
+    }
+    reviewsView(ul.children.length ? "my-reviews-list" : "my-reviews-empty");
+  }
+
+  function loadReviews() {
+    var seq = ++reviewsSeq;
+    if (!API || typeof API.request !== "function") { setText($("my-reviews-error-text"), "account.reviews.loadErr"); reviewsView("my-reviews-error"); return; }
+    reviewsView("my-reviews-loading");
+    API.request("GET", "/api/reviews/mine", null, function (err, data) {
+      if (seq !== reviewsSeq) return;
+      if (err) {
+        setText($("my-reviews-error-text"), err.status === 0 ? friendly(err) : "account.reviews.loadErr");
+        reviewsView("my-reviews-error");
+        return;
+      }
+      renderReviews(data && Array.isArray(data.reviews) ? data.reviews : []);
+    });
+  }
+
+  /** Native <dialog> confirm: Cancel focused, Esc cancels, focus returns to the opener. cb(ok). */
+  function confirmReviewDelete(nameSpec, trigger, cb) {
+    var dlg = $("review-confirm");
+    var opener = trigger || document.activeElement;
+    if (!dlg || typeof dlg.showModal !== "function") {
+      cb(window.confirm(L.t("account.reviews.confirmTitle")));
+      return;
+    }
+    setText($("review-confirm-text"), { k: "account.reviews.confirmText", v: { name: nameSpec } });
+    dlg.returnValue = "";
+    function onClose() {
+      dlg.removeEventListener("close", onClose);
+      if (opener && opener.focus && document.contains(opener)) opener.focus();
+      cb(dlg.returnValue === "ok");
+    }
+    dlg.addEventListener("close", onClose);
+    dlg.showModal();
+    $("review-confirm-cancel").focus();
+  }
+
+  function deleteReview(r, nameSpec, btn, li) {
+    confirmReviewDelete(nameSpec, btn, function (ok) {
+      if (!ok) return;
+      btn.disabled = true;
+      API.request("DELETE", "/api/reviews/" + encodeURIComponent(String(r.id)), null, function (err) {
+        if (err && err.status !== 404) {
+          btn.disabled = false;
+          if (err.status === 401) { load(); return; }
+          reviewsAnnounce(err.status === 0 ? friendly(err) : "account.reviews.deleteErr");
+          btn.focus();
+          return;
+        }
+        // 204, or 404 (already gone): remove the row either way.
+        var ul = $("my-reviews-list");
+        var items = Array.prototype.slice.call(ul.children);
+        var idx = items.indexOf(li);
+        li.remove();
+        reviewsAnnounce("account.reviews.deleted");
+        var rest = ul.children;
+        if (!rest.length) { reviewsView("my-reviews-empty"); $("my-reviews-title").focus(); return; }
+        var target = rest[Math.min(Math.max(idx, 0), rest.length - 1)].querySelector(".acct-review-del");
+        (target || $("my-reviews-title")).focus();
+      });
+    });
+  }
+  $("my-reviews-retry").addEventListener("click", loadReviews);
 
   function load() {
     if (!API || !API.isOnline()) { view("acct-offline"); return; }
+    // Wait for the one-per-page backend probe; static hosting gets the browse-only notice.
+    if (typeof API.mode === "function" && API.mode() === "pending") { view("acct-loading"); API.ready(load); return; }
+    if (typeof API.isStatic === "function" && API.isStatic()) { view("acct-static"); return; }
     view("acct-loading");
     API.me(function (err, data) {
       if (err) {
